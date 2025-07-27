@@ -1,0 +1,7 @@
+id,auth_id,nombre,email,rol,telefono,empresa,avatar_url,activo,created_at,updated_at
+550e8400-e29b-41d4-a716-446655440001,,Alimentos Naturales SA,contacto@alimentosnaturales.com.ar,cliente,+54 11 4567-8900,Alimentos Naturales SA,,true,2024-01-10 10:00:00,2024-01-10 10:00:00
+550e8400-e29b-41d4-a716-446655440002,,Importadora del Sur SRL,info@importadorasur.com,cliente,+54 11 9876-5432,Importadora del Sur SRL,,true,2024-01-15 14:30:00,2024-01-15 14:30:00
+550e8400-e29b-41d4-a716-446655440003,,Tecnología Avanzada SA,ventas@tecavanzada.com.ar,cliente,+54 11 5555-1234,Tecnología Avanzada SA,,true,2024-01-20 09:15:00,2024-01-20 09:15:00
+550e8400-e29b-41d4-a716-446655440004,,Exportadora Argentina SRL,export@argentina.com.ar,cliente,+54 11 7777-8888,Exportadora Argentina SRL,,true,2024-01-25 16:45:00,2024-01-25 16:45:00
+550e8400-e29b-41d4-a716-446655440005,,Juan Carlos Pérez,jperez@despachante.com.ar,despachante,+54 11 3333-4444,Estudio Pérez & Asociados,,true,2024-01-05 08:00:00,2024-01-05 08:00:00
+550e8400-e29b-41d4-a716-446655440006,,María González,admin@sistema.com.ar,admin,+54 11 2222-3333,Sistema de Gestión,,true,2024-01-01 00:00:00,2024-01-01 00:00:00
