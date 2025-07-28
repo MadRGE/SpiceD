@@ -32,16 +32,16 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="card-modern p-6">
       <div className="grid grid-cols-1 lg:grid-cols-7 gap-4 min-h-96">
         {estados.map(estado => {
           const procesosEstado = getProcesosPorEstado(estado.key);
           
           return (
-            <div key={estado.key} className={`rounded-lg border-2 ${estado.color} p-4`}>
+            <div key={estado.key} className={`rounded-2xl border-2 ${estado.color} p-4 backdrop-blur-sm`}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-800">{estado.label}</h3>
-                <span className="bg-white px-2 py-1 rounded-full text-sm font-medium">
+                <h3 className="font-semibold text-slate-800">{estado.label}</h3>
+                <span className="bg-white/80 backdrop-blur-sm px-2 py-1 rounded-full text-sm font-medium shadow-sm">
                   {procesosEstado.length}
                 </span>
               </div>
@@ -60,7 +60,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
               </div>
               
               {procesosEstado.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-slate-500">
                   <p className="text-sm">No hay procesos</p>
                 </div>
               )}

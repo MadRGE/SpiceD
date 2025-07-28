@@ -94,23 +94,23 @@ const ProcessCard: React.FC<ProcessCardProps> = ({
   return (
     <div
       onClick={handleCardClick}
-      className={`bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-all cursor-pointer select-none ${getUrgencyColor()}`}
+      className={`card-modern p-4 hover-lift cursor-pointer select-none ${getUrgencyColor()}`}
     >
       {/* Título del proceso */}
       <div className="mb-3">
-        <h4 className="font-semibold text-sm text-gray-800 line-clamp-2 mb-2">
+        <h4 className="font-semibold text-sm text-slate-800 line-clamp-2 mb-2">
           {proceso.titulo}
         </h4>
       </div>
 
       {/* Cliente y Organismo */}
       <div className="space-y-2 mb-3">
-        <div className="flex items-center text-sm text-gray-700">
-        <User size={16} className="mr-2 text-blue-600" />
+        <div className="flex items-center text-sm text-slate-700">
+        <User size={16} className="mr-2 text-blue-500" />
         <span className="font-medium">{proceso.cliente}</span>
       </div>
-        <div className="flex items-center text-sm text-gray-600">
-          <Building size={16} className="mr-2 text-gray-500" />
+        <div className="flex items-center text-sm text-slate-600">
+          <Building size={16} className="mr-2 text-slate-500" />
           <span>{proceso.organismo}</span>
         </div>
       </div>
@@ -119,16 +119,16 @@ const ProcessCard: React.FC<ProcessCardProps> = ({
       {proceso.fechaVencimiento && (
         <div className="mb-3">
           <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center text-gray-600">
+            <div className="flex items-center text-slate-600">
               <Clock size={14} className="mr-2" />
               <span>Vence: {format(new Date(proceso.fechaVencimiento), 'dd/MM/yy', { locale: es })}</span>
             </div>
             {daysUntilDue !== null && (
-              <span className={`px-2 py-1 rounded-full font-medium text-xs ${
-                daysUntilDue < 0 ? 'bg-red-100 text-red-800' :
-                daysUntilDue <= 3 ? 'bg-orange-100 text-orange-800' :
-                daysUntilDue <= 7 ? 'bg-yellow-100 text-yellow-800' :
-                'bg-green-100 text-green-800'
+              <span className={`px-2 py-1 rounded-full font-medium text-xs text-white shadow-sm ${
+                daysUntilDue < 0 ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                daysUntilDue <= 3 ? 'bg-gradient-to-r from-orange-500 to-orange-600' :
+                daysUntilDue <= 7 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
+                'bg-gradient-to-r from-emerald-500 to-emerald-600'
               }`}>
                 {daysUntilDue < 0 ? `${Math.abs(daysUntilDue)} días vencido` :
                  daysUntilDue === 0 ? 'Vence hoy' :
@@ -159,11 +159,11 @@ const ProcessCard: React.FC<ProcessCardProps> = ({
       {proceso.costos && proceso.costos > 0 && (
         <div className="mb-3">
           <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center text-gray-600">
+            <div className="flex items-center text-slate-600">
             <DollarSign size={16} className="mr-1" />
               <span>Costo</span>
           </div>
-            <span className="font-semibold text-green-600">
+            <span className="font-semibold bg-gradient-to-r from-emerald-600 to-emerald-800 bg-clip-text text-transparent">
             ${proceso.costos.toLocaleString('es-AR')}
           </span>
         </div>
@@ -176,7 +176,7 @@ const ProcessCard: React.FC<ProcessCardProps> = ({
           value={proceso.estado}
           onChange={handleStateChange}
           onClick={(e) => e.stopPropagation()}
-          className="w-full px-3 py-2 text-xs font-medium rounded border border-gray-300 bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+          className="input-modern w-full text-xs font-medium"
         >
           {Object.entries(estadoLabels).map(([value, label]) => (
             <option key={value} value={value}>
@@ -187,10 +187,10 @@ const ProcessCard: React.FC<ProcessCardProps> = ({
       </div>
 
       {/* Botones de acción */}
-      <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+      <div className="flex justify-between items-center pt-3 border-t border-slate-200">
         <button
           onClick={handleCardClick}
-          className="flex items-center space-x-1 px-3 py-1.5 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 rounded transition-colors"
+          className="flex items-center space-x-1 px-3 py-1.5 text-xs bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm"
           title="Ver detalles"
         >
           <Eye size={12} />
@@ -200,7 +200,7 @@ const ProcessCard: React.FC<ProcessCardProps> = ({
         <div className="flex space-x-1">
           <button
             onClick={handleEditClick}
-            className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
             title="Editar proceso"
           >
             <Edit size={14} />
@@ -208,7 +208,7 @@ const ProcessCard: React.FC<ProcessCardProps> = ({
           
         <button
           onClick={handleDeleteClick}
-            className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+            className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
           title="Eliminar proceso"
         >
             <Trash2 size={14} />

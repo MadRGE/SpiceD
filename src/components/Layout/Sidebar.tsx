@@ -36,12 +36,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Si es fija, no mostrar overlay y usar posición diferente
   if (isFixed) {
     return (
-      <div className="fixed left-0 top-0 h-full bg-white shadow-lg z-30 w-16">
+      <div className="fixed left-0 top-0 h-full sidebar-modern shadow-2xl z-30 w-16">
         {/* Header */}
-        <div className="p-2 border-b bg-blue-600 text-white">
+        <div className="p-2 border-b border-white/10 bg-gradient-to-r from-slate-800 to-slate-700 text-white">
           <button
             onClick={onToggleFixed}
-            className="w-full p-2 hover:bg-blue-700 rounded-lg transition-colors"
+            className="w-full p-2 hover:bg-white/10 rounded-xl transition-all duration-200"
             title="Desanclar sidebar"
           >
             <PinOff size={16} className="mx-auto" />
@@ -58,10 +58,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   key={item.id}
                   onClick={() => onMenuSelect(item.id)}
-                  className="w-full flex items-center justify-center p-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors group"
+                  className="w-full flex items-center justify-center p-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-all duration-200 group"
                   title={item.label}
                 >
-                  <Icon size={20} className="group-hover:text-blue-600" />
+                  <Icon size={20} className="group-hover:scale-110 transition-transform" />
                 </button>
               );
             })}
@@ -78,10 +78,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   key={item.id}
                   onClick={() => onMenuSelect(item.id)}
-                  className="w-full flex items-center justify-center p-3 text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg transition-colors group"
+                  className="w-full flex items-center justify-center p-3 text-slate-400 hover:bg-white/10 hover:text-white rounded-xl transition-all duration-200 group"
                   title={item.label}
                 >
-                  <Icon size={20} className="group-hover:text-blue-600" />
+                  <Icon size={20} className="group-hover:scale-110 transition-transform" />
                 </button>
               );
             })}
@@ -103,12 +103,12 @@ const Sidebar: React.FC<SidebarProps> = ({
       />
       
       {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-16 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
-        <div className="p-4 border-b bg-blue-600 text-white">
+      <div className="fixed left-0 top-0 h-full w-16 sidebar-modern shadow-2xl z-50 transform transition-transform duration-300 ease-in-out">
+        <div className="p-4 border-b border-white/10 bg-gradient-to-r from-slate-800 to-slate-700 text-white">
           <div className="flex items-center justify-between">
             <button
               onClick={onClose}
-              className="p-2 hover:bg-blue-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/10 rounded-xl transition-all duration-200"
             >
               <X size={20} />
             </button>
@@ -126,10 +126,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                     onMenuSelect(item.id);
                     onClose();
                   }}
-                  className="w-full flex items-center justify-center p-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors group"
+                  className="w-full flex items-center justify-center p-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-all duration-200 group"
                   title={item.label}
                 >
-                  <Icon size={20} className="group-hover:text-blue-600" />
+                  <Icon size={20} className="group-hover:scale-110 transition-transform" />
                 </button>
               );
             })}
@@ -147,10 +147,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                     onMenuSelect(item.id);
                     onClose();
                   }}
-                  className="w-full flex items-center justify-center p-3 text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg transition-colors group"
+                  className="w-full flex items-center justify-center p-3 text-slate-400 hover:bg-white/10 hover:text-white rounded-xl transition-all duration-200 group"
                   title={item.label}
                 >
-                  <Icon size={20} className="group-hover:text-blue-600" />
+                  <Icon size={20} className="group-hover:scale-110 transition-transform" />
                 </button>
               );
             })}

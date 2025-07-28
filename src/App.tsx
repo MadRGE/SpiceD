@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Bell, Home, AlertTriangle, CheckCircle, User, FileText, Receipt, Search, Filter } from 'lucide-react';
+import { Menu, Bell, Home, AlertTriangle, CheckCircle, User, FileText, Receipt, Search, Filter, Database } from 'lucide-react';
 
 // Importar hooks locales (dejamos Supabase en stand-by como solicitaste)
 import { useClientes } from './hooks/useClientes';
@@ -50,6 +50,8 @@ const App: React.FC = () => {
   const [showProcessForm, setShowProcessForm] = useState(false);
   const [editingProcess, setEditingProcess] = useState<ProcesoDisplay | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showConnectionError, setShowConnectionError] = useState(false);
   
   // Estados de filtros
   const [filtros, setFiltros] = useState<FiltrosProcesos>({
@@ -380,7 +382,7 @@ const App: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowFilters(true)}
-                  className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="btn-secondary flex items-center space-x-2"
                 >
                   <Filter size={20} />
                   <span>Filtros</span>
@@ -390,7 +392,7 @@ const App: React.FC = () => {
                     setEditingProcess(null);
                     setShowProcessForm(true);
                   }}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="btn-primary flex items-center space-x-2"
                 >
                   <FileText size={20} />
                   <span>Nuevo Proceso</span>
@@ -617,57 +619,70 @@ const App: React.FC = () => {
         // Dashboard principal con todas las estadísticas
         return (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h1 className="text-3xl font-bold text-gray-800 mb-4">
+            <div className="card-modern p-8">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl">
+                  <FileText className="text-white" size={32} />
+                </div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-4">
                 🚀 Sistema de Gestión de Importación/Exportación
               </h1>
-              <p className="text-gray-600 mb-6">
+                <p className="text-slate-600 text-lg max-w-2xl mx-auto">
                 Sistema completo para gestión de procesos aduaneros, clientes, presupuestos, facturación y documentos.
               </p>
+              </div>
 
               {/* Estadísticas principales del dashboard */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                <div className="card-gradient p-6 hover-lift group">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-blue-800">Clientes</h3>
-                      <p className="text-3xl font-bold text-blue-600">{clientes.length}</p>
-                      <p className="text-sm text-blue-600">Registrados</p>
+                      <h3 className="text-lg font-semibold text-slate-700 group-hover:text-blue-700 transition-colors">Clientes</h3>
+                      <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">{clientes.length}</p>
+                      <p className="text-sm text-slate-600">Registrados</p>
                     </div>
-                    <User className="text-blue-600" size={32} />
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                      <User className="text-white" size={24} />
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-green-50 p-6 rounded-lg border border-green-200">
+                <div className="card-gradient p-6 hover-lift group">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-green-800">Presupuestos</h3>
-                      <p className="text-3xl font-bold text-green-600">{presupuestos.length}</p>
-                      <p className="text-sm text-green-600">Activos</p>
+                      <h3 className="text-lg font-semibold text-slate-700 group-hover:text-emerald-700 transition-colors">Presupuestos</h3>
+                      <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-800 bg-clip-text text-transparent">{presupuestos.length}</p>
+                      <p className="text-sm text-slate-600">Activos</p>
                     </div>
-                    <Receipt className="text-green-600" size={32} />
+                    <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                      <Receipt className="text-white" size={24} />
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
+                <div className="card-gradient p-6 hover-lift group">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-purple-800">Procesos</h3>
-                      <p className="text-3xl font-bold text-purple-600">{procesos.length}</p>
-                      <p className="text-sm text-purple-600">En gestión</p>
+                      <h3 className="text-lg font-semibold text-slate-700 group-hover:text-purple-700 transition-colors">Procesos</h3>
+                      <p className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">{procesos.length}</p>
+                      <p className="text-sm text-slate-600">En gestión</p>
                     </div>
-                    <FileText className="text-purple-600" size={32} />
+                    <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                      <FileText className="text-white" size={24} />
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-orange-50 p-6 rounded-lg border border-orange-200">
+                <div className="card-gradient p-6 hover-lift group">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-orange-800">Plantillas</h3>
-                      <p className="text-3xl font-bold text-orange-600">{plantillasProcedimientos.length}</p>
-                      <p className="text-sm text-orange-600">Disponibles</p>
+                      <h3 className="text-lg font-semibold text-slate-700 group-hover:text-orange-700 transition-colors">Plantillas</h3>
+                      <p className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent">{plantillasProcedimientos.length}</p>
+                      <p className="text-sm text-slate-600">Disponibles</p>
                     </div>
-                    <FileText className="text-orange-600" size={32} />
+                    <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                      <FileText className="text-white" size={24} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -741,54 +756,62 @@ const App: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <button
                   onClick={() => setCurrentView('budgets')}
-                  className="p-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="card-gradient p-6 hover-lift group text-center"
                 >
-                  <Receipt className="mx-auto mb-2" size={24} />
-                  <span className="block font-medium">Crear Presupuesto</span>
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
+                    <Receipt className="text-white" size={24} />
+                  </div>
+                  <span className="block font-semibold text-slate-700">Crear Presupuesto</span>
                 </button>
                 <button
                   onClick={() => setCurrentView('clients')}
-                  className="p-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  className="card-gradient p-6 hover-lift group text-center"
                 >
-                  <User className="mx-auto mb-2" size={24} />
-                  <span className="block font-medium">Gestionar Clientes</span>
+                  <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
+                    <User className="text-white" size={24} />
+                  </div>
+                  <span className="block font-semibold text-slate-700">Gestionar Clientes</span>
                 </button>
                 <button
                   onClick={() => setCurrentView('processes')}
-                  className="p-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  className="card-gradient p-6 hover-lift group text-center"
                 >
-                  <FileText className="mx-auto mb-2" size={24} />
-                  <span className="block font-medium">Ver Procesos</span>
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
+                    <FileText className="text-white" size={24} />
+                  </div>
+                  <span className="block font-semibold text-slate-700">Ver Procesos</span>
                 </button>
                 <button
                   onClick={() => setCurrentView('templates')}
-                  className="p-4 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                  className="card-gradient p-6 hover-lift group text-center"
                 >
-                  <FileText className="mx-auto mb-2" size={24} />
-                  <span className="block font-medium">Usar Plantillas</span>
+                  <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
+                    <FileText className="text-white" size={24} />
+                  </div>
+                  <span className="block font-semibold text-slate-700">Usar Plantillas</span>
                 </button>
               </div>
 
               {/* Resumen de procesos por estado */}
-              <div className="bg-gray-50 p-6 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Estado de Procesos</h3>
+              <div className="card-gradient p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-6 text-center">Estado de Procesos</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                   {[
-                    { estado: 'pendiente', label: 'Pendiente', color: 'bg-red-100 text-red-800' },
-                    { estado: 'recopilacion-docs', label: 'Recopilación', color: 'bg-orange-100 text-orange-800' },
-                    { estado: 'enviado', label: 'Enviado', color: 'bg-blue-100 text-blue-800' },
-                    { estado: 'revision', label: 'Revisión', color: 'bg-purple-100 text-purple-800' },
-                    { estado: 'aprobado', label: 'Aprobado', color: 'bg-green-100 text-green-800' },
-                    { estado: 'rechazado', label: 'Rechazado', color: 'bg-red-100 text-red-800' },
-                    { estado: 'archivado', label: 'Archivado', color: 'bg-gray-100 text-gray-800' }
-                  ].map(({ estado, label, color }) => {
+                    { estado: 'pendiente', label: 'Pendiente', gradient: 'from-red-400 to-red-600' },
+                    { estado: 'recopilacion-docs', label: 'Recopilación', gradient: 'from-orange-400 to-orange-600' },
+                    { estado: 'enviado', label: 'Enviado', gradient: 'from-blue-400 to-blue-600' },
+                    { estado: 'revision', label: 'Revisión', gradient: 'from-purple-400 to-purple-600' },
+                    { estado: 'aprobado', label: 'Aprobado', gradient: 'from-emerald-400 to-emerald-600' },
+                    { estado: 'rechazado', label: 'Rechazado', gradient: 'from-red-500 to-pink-600' },
+                    { estado: 'archivado', label: 'Archivado', gradient: 'from-slate-400 to-slate-600' }
+                  ].map(({ estado, label, gradient }) => {
                     const count = procesos.filter(p => p.estado === estado).length;
                     return (
                       <div key={estado} className="text-center">
-                        <div className={`px-3 py-2 rounded-full text-sm font-medium ${color}`}>
+                        <div className={`w-12 h-12 bg-gradient-to-r ${gradient} rounded-xl flex items-center justify-center mx-auto mb-2 shadow-lg text-white font-bold text-lg`}>
                           {count}
                         </div>
-                        <div className="text-xs text-gray-600 mt-1">{label}</div>
+                        <div className="text-xs text-slate-600 font-medium">{label}</div>
                       </div>
                     );
                   })}
@@ -796,12 +819,12 @@ const App: React.FC = () => {
               </div>
 
               {/* Información del sistema */}
-              <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
+              <div className="mt-8 card-gradient p-6">
+                <h4 className="font-semibold text-slate-800 mb-3 flex items-center justify-center">
                   <CheckCircle className="mr-2" size={16} />
                   Sistema Completo Funcionando
                 </h4>
-                <p className="text-sm text-blue-700">
+                <p className="text-sm text-slate-600 text-center">
                   Todas las funcionalidades están operativas: gestión de clientes, presupuestos, procesos Kanban, 
                   facturación, documentos, plantillas, reportes, validación IA, notificaciones y más.
                 </p>
@@ -809,8 +832,8 @@ const App: React.FC = () => {
 
               {/* Notificaciones recientes */}
               {(notificacionesSistema.length > 0 || notificaciones.length > 0) && (
-                <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-yellow-800 mb-2 flex items-center">
+                <div className="mt-6 card-gradient p-6">
+                  <h4 className="font-semibold text-slate-800 mb-3 flex items-center justify-center">
                     <Bell className="mr-2" size={16} />
                     Notificaciones Recientes
                   </h4>
@@ -819,12 +842,12 @@ const App: React.FC = () => {
                       .filter(n => !n.leida)
                       .slice(0, 3)
                       .map(notif => (
-                        <div key={notif.id} className="text-sm text-yellow-700">
+                        <div key={notif.id} className="text-sm text-slate-600 text-center">
                           • {notif.titulo}
                         </div>
                       ))}
                     {notificacionesNoLeidas > 3 && (
-                      <div className="text-sm text-yellow-600">
+                      <div className="text-sm text-slate-500 text-center">
                         ...y {notificacionesNoLeidas - 3} más
                       </div>
                     )}
@@ -838,31 +861,44 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="header-modern sticky top-0 z-40">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 hover:scale-105"
             >
               <Menu size={24} />
             </button>
-            <h1 className="text-xl font-semibold text-gray-800">
-              Sistema de Gestión - Importación/Exportación
-            </h1>
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <FileText className="text-white" size={16} />
+              </div>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                Sistema de Gestión - Importación/Exportación
+              </h1>
+            </div>
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* Indicador de carga pequeño */}
+            {isLoading && (
+              <div className="flex items-center space-x-2 glass text-blue-800 px-3 py-1 rounded-full text-sm shadow-lg">
+                <Database className="animate-spin" size={14} />
+                <span>Conectando BD...</span>
+              </div>
+            )}
+            
             <button
               onClick={handleNotificationsClick}
-              className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="relative p-2 hover:bg-white/20 rounded-xl transition-all duration-200 hover:scale-105"
               title="Notificaciones"
             >
               <Bell size={20} />
               {notificacionesNoLeidas > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
                   {notificacionesNoLeidas > 9 ? '9+' : notificacionesNoLeidas}
                 </span>
               )}
@@ -871,7 +907,7 @@ const App: React.FC = () => {
             {currentView !== 'dashboard' && (
               <button
                 onClick={handleHomeClick}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 hover:scale-105"
                 title="Volver a Pantalla Principal"
               >
                 <Home size={20} />
@@ -897,6 +933,19 @@ const App: React.FC = () => {
         sidebarFixed ? (sidebarCollapsed ? 'ml-16' : 'ml-64') : 'ml-0'
       }`}>
         <div className="p-6">
+          {/* Alerta de error de conexión */}
+          {showConnectionError && (
+            <div className="card-modern bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 p-4 mb-6">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="text-red-600" size={20} />
+                <div>
+                  <h4 className="font-semibold text-red-800">Error de conexión</h4>
+                  <p className="text-sm text-red-700">No se pudo conectar con la base de datos. Trabajando en modo local.</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {renderCurrentView()}
         </div>
       </main>
