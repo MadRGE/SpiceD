@@ -1,1013 +1,765 @@
-import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2, User, Mail, Phone, MapPin, FileText, Building, Receipt, Eye, DollarSign } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Cliente, ProcesoDisplay, Factura } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { Settings, User, Building, DollarSign, Bell, Key, Database, FileText, Link, Save, Edit, Trash2, Plus, Search, Upload, Download, CheckCircle, AlertTriangle, RefreshCw, Zap } from 'lucide-react';
+import { plantillasProcedimientos, organismos } from '../../data/plantillas';
+import { supabase } from '../../lib/supabase';
 
-interface ClientsViewProps {
-  clientes: Cliente[];
-  procesos: ProcesoDisplay[];
-  facturas: Factura[];
-  onAddCliente: (cliente: Cliente) => void;
-  onEditCliente: (cliente: Cliente) => void;
-  onDeleteCliente: (clienteId: string) => void;
-  onProcessClick?: (proceso: ProcesoDisplay) => void;
-  setCurrentView: (view: string) => void;
-}
+const SettingsView: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'general' | 'empresa' | 'base-datos' | 'notificaciones' | 'api'>('general');
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [syncMessage, setSyncMessage] = useState('');
+  const [dbStats, setDbStats] = useState({
+    plantillas: 0,
+    usuarios: 0,
+    procesos: 0,
+    facturas: 0
+  });
+  const [plantillasEnBD, setPlantillasEnBD] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-const ClientsView: React.FC<ClientsViewProps> = ({
-  clientes,
-  procesos,
-  facturas,
-  onAddCliente,
-  onEditCliente,
-  onDeleteCliente,
-  onProcessClick,
-  setCurrentView
-}) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editingCliente, setEditingCliente] = useState<Cliente | undefined>();
-  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
-  const [activeTab, setActiveTab] = useState<'info' | 'procesos' | 'facturas' | 'documentos'>('info');
-  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  // Configuración general
+  const [configuracion, setConfiguracion] = useState({
+    empresa: {
+      nombre: 'Estudio de Despachante de Aduana',
+      cuit: '30-12345678-9',
+      direccion: 'Av. Corrientes 1234, CABA',
+      telefono: '+54 11 4567-8900',
+      email: 'contacto@estudio.com.ar',
+      sitioWeb: 'https://www.estudio.com.ar'
+    },
+    facturacion: {
+      ivaPorcentaje: 21,
+      gananciasPorcentaje: 35,
+      numeracionAutomatica: true,
+      prefijo: 'FAC'
+    },
+    notificaciones: {
+      emailNotificaciones: true,
+      notificacionesVencimiento: true,
+      diasAnticipacion: 7,
+      notificacionesDocumentos: true
+    },
+    apiKeys: {
+      openai: '',
+      supabase: {
+        url: import.meta.env.VITE_SUPABASE_URL || '',
+        anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+      }
+    }
+  });
 
-  const filteredClientes = clientes.filter(cliente =>
-    cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (cliente.cuit && cliente.cuit.includes(searchTerm))
-  );
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    
-    const cliente: Cliente = {
-      id: editingCliente?.id || Date.now().toString(),
-      nombre: formData.get('nombre') as string,
-      email: formData.get('email') as string,
-      telefono: formData.get('telefono') as string || undefined,
-      direccion: formData.get('direccion') as string || undefined,
-      cuit: formData.get('cuit') as string || undefined,
-      fechaRegistro: editingCliente?.fechaRegistro || new Date().toISOString(),
-      activo: true
-    };
-
-    if (editingCliente) {
-      onEditCliente(cliente);
-    } else {
-      onAddCliente(cliente);
+  // Cargar estadísticas de la BD
+  const cargarEstadisticasBD = async () => {
+    try {
+      setLoading(true);
       
-      // Notificar creación de cliente
-      onAddNotificacion({
-        id: Date.now().toString(),
-        tipo: 'nuevo_cliente',
-        modulo: 'clientes',
-        titulo: 'Nuevo cliente registrado',
-        mensaje: `Se ha registrado el cliente ${cliente.nombre}`,
-        fecha: new Date(),
-        leida: false,
-        prioridad: 'media',
-        clienteId: cliente.id
+      const [plantillas, usuarios, procesos, facturas] = await Promise.all([
+        supabase.from('plantillas_procedimientos').select('*', { count: 'exact' }),
+        supabase.from('usuarios').select('*', { count: 'exact' }),
+        supabase.from('procesos').select('*', { count: 'exact' }),
+        supabase.from('facturas').select('*', { count: 'exact' })
+      ]);
+
+      setDbStats({
+        plantillas: plantillas.count || 0,
+        usuarios: usuarios.count || 0,
+        procesos: procesos.count || 0,
+        facturas: facturas.count || 0
       });
-    }
 
-    setShowForm(false);
-    setEditingCliente(undefined);
-  };
-
-  const handleEdit = (cliente: Cliente) => {
-    setEditingCliente(cliente);
-    setShowForm(true);
-  };
-
-  const handleView = (cliente: Cliente) => {
-    setSelectedCliente(cliente);
-  };
-
-  const handleProcessClick = (proceso: ProcesoDisplay) => {
-    setSelectedCliente(null);
-    if (onProcessClick) {
-      onProcessClick(proceso);
+      setPlantillasEnBD(plantillas.data || []);
+    } catch (error) {
+      console.error('Error cargando estadísticas:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getClienteProcesos = (clienteId: string) => {
-    return procesos.filter(p => p.clienteId === clienteId);
+  // Sincronizar plantillas con la BD
+  const sincronizarPlantillas = async () => {
+    try {
+      setSyncStatus('syncing');
+      setSyncMessage('Sincronizando plantillas con la base de datos...');
+
+      // Preparar datos para insertar
+      const plantillasParaInsertar = plantillasProcedimientos.map(plantilla => ({
+        id: plantilla.id,
+        nombre: plantilla.nombre,
+        codigo: `${plantilla.organismo.substring(0, 6).toUpperCase()}-${plantilla.id.substring(0, 8)}`,
+        organismo: plantilla.organismo,
+        documentos_requeridos: plantilla.documentosRequeridos,
+        etapas: ['Presentación', 'Evaluación', 'Aprobación'],
+        dias_estimados: plantilla.tiempoEstimado,
+        descripcion: `Procedimiento para ${plantilla.nombre.toLowerCase()}`,
+        activo: true
+      }));
+
+      // Insertar en lotes de 10
+      const batchSize = 10;
+      let insertados = 0;
+
+      for (let i = 0; i < plantillasParaInsertar.length; i += batchSize) {
+        const batch = plantillasParaInsertar.slice(i, i + batchSize);
+        
+        const { error } = await supabase
+          .from('plantillas_procedimientos')
+          .upsert(batch, { onConflict: 'id' });
+
+        if (error) throw error;
+        
+        insertados += batch.length;
+        setSyncMessage(`Sincronizando... ${insertados}/${plantillasParaInsertar.length} plantillas`);
+      }
+
+      setSyncStatus('success');
+      setSyncMessage(`✅ ${plantillasParaInsertar.length} plantillas sincronizadas correctamente`);
+      
+      // Recargar estadísticas
+      await cargarEstadisticasBD();
+      
+    } catch (error: any) {
+      setSyncStatus('error');
+      setSyncMessage(`❌ Error: ${error.message}`);
+      console.error('Error sincronizando plantillas:', error);
+    }
   };
 
-  const getClienteFacturas = (clienteId: string) => {
-    return facturas.filter(f => f.clienteId === clienteId);
+  // Limpiar base de datos
+  const limpiarBaseDatos = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres limpiar TODA la base de datos? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      setSyncStatus('syncing');
+      setSyncMessage('Limpiando base de datos...');
+
+      const tablas = ['notificaciones', 'documentos', 'facturas', 'procesos', 'plantillas_procedimientos', 'usuarios'];
+      
+      for (const tabla of tablas) {
+        const { error } = await supabase.from(tabla).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (error) throw error;
+      }
+
+      setSyncStatus('success');
+      setSyncMessage('✅ Base de datos limpiada correctamente');
+      await cargarEstadisticasBD();
+      
+    } catch (error: any) {
+      setSyncStatus('error');
+      setSyncMessage(`❌ Error limpiando BD: ${error.message}`);
+    }
   };
 
-  const stats = {
-    total: clientes.length,
-    activos: clientes.filter(c => c.activo).length,
-    totalFacturado: facturas.reduce((sum, f) => sum + f.total, 0),
-    procesosTotales: procesos.length
+  // Exportar datos a CSV
+  const exportarDatos = async () => {
+    try {
+      setSyncStatus('syncing');
+      setSyncMessage('Exportando datos...');
+
+      const { data: plantillas } = await supabase.from('plantillas_procedimientos').select('*');
+      const { data: usuarios } = await supabase.from('usuarios').select('*');
+      const { data: procesos } = await supabase.from('procesos').select('*');
+
+      // Crear CSV de plantillas
+      if (plantillas) {
+        const csvContent = [
+          'id,nombre,codigo,organismo,dias_estimados,descripcion',
+          ...plantillas.map(p => `${p.id},"${p.nombre}","${p.codigo}","${p.organismo}",${p.dias_estimados},"${p.descripcion}"`)
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'plantillas_exportadas.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+
+      setSyncStatus('success');
+      setSyncMessage('✅ Datos exportados correctamente');
+      
+    } catch (error: any) {
+      setSyncStatus('error');
+      setSyncMessage(`❌ Error exportando: ${error.message}`);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'base-datos') {
+      cargarEstadisticasBD();
+    }
+  }, [activeTab]);
+
+  const handleSaveConfig = () => {
+    // Guardar configuración en localStorage
+    localStorage.setItem('app-config', JSON.stringify(configuracion));
+    alert('Configuración guardada correctamente');
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800">Gestión de Clientes</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Configuración del Sistema</h2>
         <button
-          onClick={() => {
-            setEditingCliente(undefined);
-            setShowForm(true);
-          }}
+          onClick={handleSaveConfig}
           className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          <Plus size={20} />
-          <span>Nuevo Cliente</span>
+          <Save size={20} />
+          <span>Guardar Configuración</span>
         </button>
       </div>
 
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Clientes</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow-md">
+        <div className="flex border-b overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('general')}
+            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === 'general'
+                ? 'border-blue-500 text-blue-600 bg-blue-50'
+                : 'border-transparent text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Settings size={16} />
+              <span>General</span>
             </div>
-            <User className="text-blue-600" size={32} />
-          </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('empresa')}
+            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === 'empresa'
+                ? 'border-blue-500 text-blue-600 bg-blue-50'
+                : 'border-transparent text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Building size={16} />
+              <span>Empresa</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('base-datos')}
+            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === 'base-datos'
+                ? 'border-blue-500 text-blue-600 bg-blue-50'
+                : 'border-transparent text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Database size={16} />
+              <span>Base de Datos</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('notificaciones')}
+            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === 'notificaciones'
+                ? 'border-blue-500 text-blue-600 bg-blue-50'
+                : 'border-transparent text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Bell size={16} />
+              <span>Notificaciones</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('api')}
+            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === 'api'
+                ? 'border-blue-500 text-blue-600 bg-blue-50'
+                : 'border-transparent text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Key size={16} />
+              <span>API Keys</span>
+            </div>
+          </button>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Activos</p>
-              <p className="text-2xl font-bold text-green-600">{stats.activos}</p>
-            </div>
-            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-              <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Facturado</p>
-              <p className="text-2xl font-bold text-purple-600">${stats.totalFacturado.toLocaleString()}</p>
-            </div>
-            <DollarSign className="text-purple-600" size={32} />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Procesos</p>
-              <p className="text-2xl font-bold text-orange-600">{stats.procesosTotales}</p>
-            </div>
-            <FileText className="text-orange-600" size={32} />
-          </div>
-        </div>
-      </div>
-
-      {/* Filtros */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Buscar clientes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      </div>
-
-      {/* Lista de Clientes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredClientes.map((cliente) => {
-          const clienteProcesos = getClienteProcesos(cliente.id);
-          const clienteFacturas = getClienteFacturas(cliente.id);
-          const totalFacturado = clienteFacturas.reduce((sum, f) => sum + f.total, 0);
-          const facturasPendientes = clienteFacturas.filter(f => f.estado === 'enviada').length;
-
-          return (
-            <div 
-              key={cliente.id} 
-              className="bg-white rounded-lg shadow-md p-6 border cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => handleView(cliente)}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User className="text-blue-600" size={24} />
+        <div className="p-6">
+          {activeTab === 'general' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-800">Configuración General</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-4">Facturación</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Porcentaje IVA (%)
+                      </label>
+                      <input
+                        type="number"
+                        value={configuracion.facturacion.ivaPorcentaje}
+                        onChange={(e) => setConfiguracion(prev => ({
+                          ...prev,
+                          facturacion: { ...prev.facturacion, ivaPorcentaje: Number(e.target.value) }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Porcentaje Ganancias (%)
+                      </label>
+                      <input
+                        type="number"
+                        value={configuracion.facturacion.gananciasPorcentaje}
+                        onChange={(e) => setConfiguracion(prev => ({
+                          ...prev,
+                          facturacion: { ...prev.facturacion, gananciasPorcentaje: Number(e.target.value) }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Prefijo de Facturas
+                      </label>
+                      <input
+                        type="text"
+                        value={configuracion.facturacion.prefijo}
+                        onChange={(e) => setConfiguracion(prev => ({
+                          ...prev,
+                          facturacion: { ...prev.facturacion, prefijo: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
                   </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-4">Preferencias</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={configuracion.facturacion.numeracionAutomatica}
+                        onChange={(e) => setConfiguracion(prev => ({
+                          ...prev,
+                          facturacion: { ...prev.facturacion, numeracionAutomatica: e.target.checked }
+                        }))}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label className="ml-2 text-sm text-gray-700">
+                        Numeración automática de facturas
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'empresa' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-800">Información de la Empresa</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre de la Empresa
+                  </label>
+                  <input
+                    type="text"
+                    value={configuracion.empresa.nombre}
+                    onChange={(e) => setConfiguracion(prev => ({
+                      ...prev,
+                      empresa: { ...prev.empresa, nombre: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    CUIT
+                  </label>
+                  <input
+                    type="text"
+                    value={configuracion.empresa.cuit}
+                    onChange={(e) => setConfiguracion(prev => ({
+                      ...prev,
+                      empresa: { ...prev.empresa, cuit: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Teléfono
+                  </label>
+                  <input
+                    type="tel"
+                    value={configuracion.empresa.telefono}
+                    onChange={(e) => setConfiguracion(prev => ({
+                      ...prev,
+                      empresa: { ...prev.empresa, telefono: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={configuracion.empresa.email}
+                    onChange={(e) => setConfiguracion(prev => ({
+                      ...prev,
+                      empresa: { ...prev.empresa, email: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Dirección
+                  </label>
+                  <textarea
+                    value={configuracion.empresa.direccion}
+                    onChange={(e) => setConfiguracion(prev => ({
+                      ...prev,
+                      empresa: { ...prev.empresa, direccion: e.target.value }
+                    }))}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sitio Web
+                  </label>
+                  <input
+                    type="url"
+                    value={configuracion.empresa.sitioWeb}
+                    onChange={(e) => setConfiguracion(prev => ({
+                      ...prev,
+                      empresa: { ...prev.empresa, sitioWeb: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'base-datos' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-800">Gestión de Base de Datos</h3>
+                <button
+                  onClick={cargarEstadisticasBD}
+                  disabled={loading}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                  <span>Actualizar</span>
+                </button>
+              </div>
+
+              {/* Estado de conexión */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <Database className="text-blue-600" size={20} />
                   <div>
-                    <h3 className="font-semibold text-gray-800">{cliente.nombre}</h3>
-                    <span className="text-sm text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                      Cliente Activo
+                    <h4 className="font-medium text-blue-800">Estado de Conexión</h4>
+                    <p className="text-sm text-blue-700">
+                      Conectado a: {configuracion.apiKeys.supabase.url ? 
+                        configuracion.apiKeys.supabase.url.replace('https://', '').split('.')[0] + '.supabase.co' : 
+                        'No configurado'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Estadísticas de la BD */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white border rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-600">{dbStats.plantillas}</div>
+                  <div className="text-sm text-gray-600">Plantillas</div>
+                </div>
+                <div className="bg-white border rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-600">{dbStats.usuarios}</div>
+                  <div className="text-sm text-gray-600">Usuarios</div>
+                </div>
+                <div className="bg-white border rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-600">{dbStats.procesos}</div>
+                  <div className="text-sm text-gray-600">Procesos</div>
+                </div>
+                <div className="bg-white border rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-orange-600">{dbStats.facturas}</div>
+                  <div className="text-sm text-gray-600">Facturas</div>
+                </div>
+              </div>
+
+              {/* Estado de sincronización */}
+              {syncStatus !== 'idle' && (
+                <div className={`p-4 rounded-lg border ${
+                  syncStatus === 'syncing' ? 'bg-blue-50 border-blue-200' :
+                  syncStatus === 'success' ? 'bg-green-50 border-green-200' :
+                  'bg-red-50 border-red-200'
+                }`}>
+                  <div className="flex items-center space-x-2">
+                    {syncStatus === 'syncing' && <RefreshCw className="animate-spin text-blue-600" size={20} />}
+                    {syncStatus === 'success' && <CheckCircle className="text-green-600" size={20} />}
+                    {syncStatus === 'error' && <AlertTriangle className="text-red-600" size={20} />}
+                    <span className={`font-medium ${
+                      syncStatus === 'syncing' ? 'text-blue-800' :
+                      syncStatus === 'success' ? 'text-green-800' :
+                      'text-red-800'
+                    }`}>
+                      {syncMessage}
                     </span>
                   </div>
                 </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleView(cliente);
-                    }}
-                    className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                    title="Ver detalles"
-                  >
-                    <Eye size={16} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit(cliente);
-                    }}
-                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                    title="Editar cliente"
-                  >
-                    <Edit size={16} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.confirm(`¿Estás seguro de que quieres eliminar el cliente "${cliente.nombre}"?`)) {
-                        onDeleteCliente(cliente.id);
-                      }
-                    }}
-                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                    title="Eliminar cliente"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
+              )}
 
-              <div className="space-y-2 text-sm text-gray-600 mb-4">
-                <div className="flex items-center space-x-2">
-                  <Mail size={14} />
-                  <span>{cliente.email}</span>
-                </div>
-                {cliente.telefono && (
-                  <div className="flex items-center space-x-2">
-                    <Phone size={14} />
-                    <span>{cliente.telefono}</span>
-                  </div>
-                )}
-                {cliente.cuit && (
-                  <div className="flex items-center space-x-2">
-                    <Building size={14} />
-                    <span>CUIT: {cliente.cuit}</span>
-                  </div>
-                )}
-                {cliente.direccion && (
-                  <div className="flex items-center space-x-2">
-                    <MapPin size={14} />
-                    <span>{cliente.direccion}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Resumen de actividad */}
-              <div className="border-t pt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Procesos:</span>
-                  <span className="font-medium">{clienteProcesos.length}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Facturas:</span>
-                  <span className="font-medium">{clienteFacturas.length}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Pendientes:</span>
-                  <span className="font-medium text-orange-600">{facturasPendientes}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total facturado:</span>
-                  <span className="font-medium text-green-600">${totalFacturado.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Estado vacío */}
-      {filteredClientes.length === 0 && (
-        <div className="text-center py-12">
-          <User size={64} className="mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-600 mb-2">
-            No se encontraron clientes
-          </h3>
-          <p className="text-gray-500">
-            {searchTerm ? 'Intenta ajustar los filtros de búsqueda' : 'Comienza agregando tu primer cliente'}
-          </p>
-        </div>
-      )}
-
-      {/* Modal de detalles del cliente */}
-      {selectedCliente && (
-        <>
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setSelectedCliente(null)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b">
-                <h3 className="text-xl font-semibold">Detalles del Cliente: {selectedCliente.nombre}</h3>
-              </div>
-              
-              <div className="p-6 space-y-6">
-                {/* Tabs */}
-                <div className="border-b">
-                  <nav className="flex space-x-8">
-                    <button
-                      onClick={() => setActiveTab('info')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === 'info'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Información
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('documentos')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === 'documentos'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Documentos Impositivos
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('procesos')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === 'procesos'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Procesos ({getClienteProcesos(selectedCliente.id).length})
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('facturas')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === 'facturas'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Facturas ({getClienteFacturas(selectedCliente.id).length})
-                    </button>
-                  </nav>
-                </div>
-
-                {/* Contenido de tabs */}
-                {activeTab === 'info' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="font-medium text-gray-700 mb-2">Información de Contacto</h4>
-                      <div className="space-y-2 text-sm">
-                        <p><strong>Email:</strong> {selectedCliente.email}</p>
-                        {selectedCliente.telefono && <p><strong>Teléfono:</strong> {selectedCliente.telefono}</p>}
-                        {selectedCliente.direccion && <p><strong>Dirección:</strong> {selectedCliente.direccion}</p>}
-                        {selectedCliente.cuit && <p><strong>CUIT:</strong> {selectedCliente.cuit}</p>}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h4 className="font-medium text-gray-700 mb-2">Resumen de Actividad</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Procesos totales:</span>
-                          <span className="font-medium">{getClienteProcesos(selectedCliente.id).length}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Facturas totales:</span>
-                          <span className="font-medium">{getClienteFacturas(selectedCliente.id).length}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Facturas pagadas:</span>
-                          <span className="font-medium text-green-600">
-                            {getClienteFacturas(selectedCliente.id).filter(f => f.estado === 'pagada').length}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Facturas pendientes:</span>
-                          <span className="font-medium text-orange-600">
-                            {getClienteFacturas(selectedCliente.id).filter(f => f.estado === 'enviada').length}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Total facturado:</span>
-                          <span className="font-medium text-blue-600">
-                            ${getClienteFacturas(selectedCliente.id).reduce((sum, f) => sum + f.total, 0).toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'documentos' && (
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-medium text-gray-700">Documentos Impositivos</h4>
-                      <input
-                        type="file"
-                        id="upload-doc"
-                        className="hidden"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setUploadingDoc(file.name);
-                            setTimeout(() => {
-                              setUploadingDoc(null);
-                              // Actualizar cliente con nuevo documento
-                              const nuevoDoc = {
-                                id: Date.now().toString(),
-                                nombre: file.name,
-                                tipo: 'documento_impositivo',
-                                url: URL.createObjectURL(file),
-                                fechaCarga: new Date().toISOString(),
-                                estado: 'cargado' as const
-                              };
-                              
-                              const clienteActualizado = {
-                                ...selectedCliente,
-                                documentosImpositivos: [
-                                  ...(selectedCliente.documentosImpositivos || []),
-                                  nuevoDoc
-                                ]
-                              };
-                              
-                              onEditCliente(clienteActualizado);
-                              setSelectedCliente(clienteActualizado);
-                            }, 2000);
-                          }
-                        }}
-                      />
-                      <label
-                        htmlFor="upload-doc"
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
-                      >
-                        Subir Documento
-                      </label>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      {/* Documentos del cliente */}
-                      {(selectedCliente.documentosImpositivos || []).map((doc) => (
-                        <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                          <div className="flex items-center space-x-3">
-                            <FileText size={16} className="text-gray-500" />
-                            <span className="text-sm font-medium">{doc.nombre}</span>
-                            {doc.url && (
-                              <button
-                                onClick={() => window.open(doc.url, '_blank')}
-                                className="text-xs text-blue-600 hover:underline"
-                              >
-                                Ver
-                              </button>
-                            )}
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              doc.estado === 'cargado' || doc.estado === 'aprobado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {doc.estado === 'cargado' ? 'Cargado' : 
-                               doc.estado === 'aprobado' ? 'Aprobado' : 'Pendiente'}
-                            </span>
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`¿Eliminar ${doc.nombre}?`)) {
-                                  const clienteActualizado = {
-                                    ...selectedCliente,
-                                    documentosImpositivos: selectedCliente.documentosImpositivos?.filter(d => d.id !== doc.id) || []
-                                  };
-                                  onEditCliente(clienteActualizado);
-                                  setSelectedCliente(clienteActualizado);
-                                }
-                              }}
-                              className="p-1 text-red-600 hover:bg-red-100 rounded"
-                              title="Eliminar documento"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      {/* Documentos requeridos que faltan */}
-                      {[
-                        'Certificado de CUIT',
-                        'Constancia de Inscripción AFIP', 
-                        'Certificado Fiscal',
-                        'Poder de Representación'
-                      ].filter(docRequerido => 
-                        !(selectedCliente.documentosImpositivos || []).some(doc => 
-                          doc.nombre.toLowerCase().includes(docRequerido.toLowerCase())
-                        )
-                      ).map((docFaltante, index) => (
-                        <div key={`faltante-${index}`} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                          <div className="flex items-center space-x-3">
-                            <FileText size={16} className="text-yellow-600" />
-                            <span className="text-sm font-medium">{docFaltante}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
-                              Pendiente
-                            </span>
-                            <input
-                              type="file"
-                              id={`upload-${index}`}
-                              className="hidden"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const nuevoDoc = {
-                                    id: Date.now().toString(),
-                                    nombre: docFaltante,
-                                    tipo: 'documento_impositivo',
-                                    url: URL.createObjectURL(file),
-                                    fechaCarga: new Date().toISOString(),
-                                    estado: 'cargado' as const
-                                  };
-                                  
-                                  const clienteActualizado = {
-                                    ...selectedCliente,
-                                    documentosImpositivos: [
-                                      ...(selectedCliente.documentosImpositivos || []),
-                                      nuevoDoc
-                                    ]
-                                  };
-                                  
-                                  onEditCliente(clienteActualizado);
-                                  setSelectedCliente(clienteActualizado);
-                                }
-                              }}
-                            />
-                            <label
-                              htmlFor={`upload-${index}`}
-                              className="px-2 py-1 text-xs bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700"
-                            >
-                              Subir
-                            </label>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      {/* Botón para agregar documento personalizado */}
-                      <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                        <input
-                          type="file"
-                          id="upload-custom-doc"
-                          className="hidden"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const nuevoDoc = {
-                                id: Date.now().toString(),
-                                nombre: file.name,
-                                tipo: 'documento_personalizado',
-                                url: URL.createObjectURL(file),
-                                fechaCarga: new Date().toISOString(),
-                                estado: 'cargado' as const
-                              };
-                              
-                              const clienteActualizado = {
-                                ...selectedCliente,
-                                documentosImpositivos: [
-                                  ...(selectedCliente.documentosImpositivos || []),
-                                  nuevoDoc
-                                ]
-                              };
-                              
-                              onEditCliente(clienteActualizado);
-                              setSelectedCliente(clienteActualizado);
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor="upload-custom-doc"
-                          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
-                        >
-                          <Plus size={16} />
-                          <span>Agregar Documento Personalizado</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'procesos' && (
-                  <div>
-                    <h4 className="font-medium text-gray-700 mb-4">Procesos del Cliente</h4>
-                    {getClienteProcesos(selectedCliente.id).length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-2 text-left">Título</th>
-                              <th className="px-4 py-2 text-left">Organismo</th>
-                              <th className="px-4 py-2 text-left">Estado</th>
-                              <th className="px-4 py-2 text-left">Progreso</th>
-                              <th className="px-4 py-2 text-left">Fecha</th>
-                              <th className="px-4 py-2 text-left">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {getClienteProcesos(selectedCliente.id).map((proceso) => (
-                              <tr key={proceso.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-2 font-medium">{proceso.titulo}</td>
-                                <td className="px-4 py-2">{proceso.organismo}</td>
-                                <td className="px-4 py-2">
-                                  <span className={`px-2 py-1 text-xs rounded-full ${
-                                    proceso.estado === 'aprobado' ? 'bg-green-100 text-green-800' :
-                                    proceso.estado === 'en-progreso' ? 'bg-blue-100 text-blue-800' :
-                                    'bg-yellow-100 text-yellow-800'
-                                  }`}>
-                                    {proceso.estado}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2">{proceso.progreso}%</td>
-                                <td className="px-4 py-2">{format(new Date(proceso.fechaCreacion), 'dd/MM/yyyy')}</td>
-                                <td className="px-4 py-2">
-                                  <button
-                                    onClick={() => {
-                                      handleProcessClick(proceso);
-                                    }}
-                                    className="text-blue-600 hover:text-blue-900 text-sm"
-                                  >
-                                    Ver Proceso →
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                            <tr className="bg-blue-50 hover:bg-blue-100 cursor-pointer">
-                              <td colSpan={6} className="px-4 py-3 text-center">
-                                <button
-                                  onClick={() => {
-                                    setSelectedCliente(null);
-                                    setCurrentView('processes');
-                                    // TODO: Pre-seleccionar cliente en formulario
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800 font-medium"
-                                >
-                                  + Crear Nuevo Proceso para este Cliente
-                                </button>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 text-center py-4">No hay procesos para este cliente</p>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'presupuestos' && (
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-medium text-gray-700">Presupuestos del Cliente</h4>
-                      <button
-                        onClick={() => {
-                          setSelectedCliente(null);
-                          setCurrentView('budgets');
-                        }}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        Crear Presupuesto
-                      </button>
-                    </div>
-                    {presupuestos.filter(p => p.clienteId === selectedCliente.id).length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-2 text-left">Número</th>
-                              <th className="px-4 py-2 text-left">Tipo Operación</th>
-                              <th className="px-4 py-2 text-left">Total</th>
-                              <th className="px-4 py-2 text-left">Estado</th>
-                              <th className="px-4 py-2 text-left">Fecha</th>
-                              <th className="px-4 py-2 text-left">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {presupuestos.filter(p => p.clienteId === selectedCliente.id).map((presupuesto) => (
-                              <tr key={presupuesto.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-2">{presupuesto.numero}</td>
-                                <td className="px-4 py-2">{presupuesto.tipoOperacion}</td>
-                                <td className="px-4 py-2">${presupuesto.total?.toLocaleString()}</td>
-                                <td className="px-4 py-2">
-                                  <span className={`px-2 py-1 text-xs rounded-full ${
-                                    presupuesto.estado === 'aprobado' ? 'bg-green-100 text-green-800' :
-                                    presupuesto.estado === 'enviado' ? 'bg-blue-100 text-blue-800' :
-                                    'bg-yellow-100 text-yellow-800'
-                                  }`}>
-                                    {presupuesto.estado}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2">{format(presupuesto.fechaCreacion, 'dd/MM/yyyy')}</td>
-                                <td className="px-4 py-2">
-                                  <button
-                                    onClick={() => {
-                                      setSelectedCliente(null);
-                                      setCurrentView('budgets');
-                                    }}
-                                    className="text-blue-600 hover:text-blue-900 text-sm"
-                                  >
-                                    Ver Presupuesto →
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 text-center py-4">No hay presupuestos para este cliente</p>
-                    )}
-                  </div>
-                )}
-                {activeTab === 'facturas' && (
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-medium text-gray-700">Facturas del Cliente</h4>
-                      <button
-                        onClick={() => {
-                          setSelectedCliente(null);
-                          setCurrentView('financial');
-                        }}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        Ir a Facturación
-                      </button>
-                    </div>
-                    {getClienteFacturas(selectedCliente.id).length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-2 text-left">Número</th>
-                              <th className="px-4 py-2 text-left">Fecha</th>
-                              <th className="px-4 py-2 text-left">Total</th>
-                              <th className="px-4 py-2 text-left">Estado</th>
-                              <th className="px-4 py-2 text-left">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {getClienteFacturas(selectedCliente.id).map((factura) => (
-                              <tr key={factura.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-2">{factura.numero}</td>
-                                <td className="px-4 py-2">{format(new Date(factura.fecha), 'dd/MM/yyyy')}</td>
-                                <td className="px-4 py-2">${factura.total.toLocaleString()}</td>
-                                <td className="px-4 py-2">
-                                  <span className={`px-2 py-1 text-xs rounded-full ${
-                                    factura.estado === 'pagada' ? 'bg-green-100 text-green-800' :
-                                    factura.estado === 'enviada' ? 'bg-blue-100 text-blue-800' :
-                                    'bg-yellow-100 text-yellow-800'
-                                  }`}>
-                                    {factura.estado}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2">
-                                  <button
-                                    onClick={() => {
-                                      setSelectedCliente(null);
-                                      setCurrentView('financial');
-                                    }}
-                                    className="text-blue-600 hover:text-blue-900 text-sm"
-                                  >
-                                    Ver Factura →
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                            <tr className="bg-green-50 hover:bg-green-100 cursor-pointer">
-                              <td colSpan={5} className="px-4 py-3 text-center">
-                                <button
-                                  onClick={() => {
-                                    setSelectedCliente(null);
-                                    setCurrentView('financial');
-                                    // TODO: Pre-seleccionar cliente en formulario de factura
-                                  }}
-                                  className="text-green-600 hover:text-green-800 font-medium"
-                                >
-                                  + Crear Nueva Factura para este Cliente
-                                </button>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 text-center py-4">No hay facturas para este cliente</p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="p-6 border-t flex justify-between">
-                <button
-                  onClick={() => setSelectedCliente(null)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg transition-colors"
-                >
-                  Cerrar
-                </button>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => {
-                      setSelectedCliente(null);
-                      // Crear nuevo proceso para este cliente
-                      setCurrentView('processes');
-                      // Aquí podrías pasar el clienteId para pre-seleccionar
-                    }}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Crear Proceso
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedCliente(null);
-                      handleEdit(selectedCliente);
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
-                  >
-                    Editar Cliente
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Formulario Cliente Modal */}
-      {showForm && (
-        <>
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShowForm(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b">
-                <h3 className="text-xl font-semibold">
-                  {editingCliente ? 'Editar Cliente' : 'Nuevo Cliente'}
-                </h3>
-              </div>
-              
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nombre *
-                    </label>
-                    <input
-                      type="text"
-                      name="nombre"
-                      defaultValue={editingCliente?.nombre}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      defaultValue={editingCliente?.email}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Teléfono
-                    </label>
-                    <input
-                      type="tel"
-                      name="telefono"
-                      defaultValue={editingCliente?.telefono}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      CUIT
-                    </label>
-                    <input
-                      type="text"
-                      name="cuit"
-                      defaultValue={editingCliente?.cuit}
-                      placeholder="XX-XXXXXXXX-X"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Dirección
-                    </label>
-                    <textarea
-                      name="direccion"
-                      defaultValue={editingCliente?.direccion}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                {/* Sección de documentos para nuevo cliente */}
-                {!editingCliente && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-800 mb-3">Documentos Impositivos (Opcional)</h4>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Puedes agregar documentos ahora o después desde los detalles del cliente
+              {/* Acciones de sincronización */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <div className="text-center">
+                    <Zap className="mx-auto mb-3 text-green-600" size={32} />
+                    <h4 className="font-semibold text-green-800 mb-2">Sincronizar Plantillas</h4>
+                    <p className="text-sm text-green-700 mb-4">
+                      Sube las 76 plantillas de procedimientos a la base de datos
                     </p>
-                    
-                    <div className="space-y-3">
-                      {[
-                        'Certificado de CUIT',
-                        'Constancia de Inscripción AFIP',
-                        'Certificado Fiscal',
-                        'Poder de Representación'
-                      ].map((docName, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-white rounded border">
-                          <span className="text-sm font-medium">{docName}</span>
-                          <input
-                            type="file"
-                            id={`new-client-doc-${index}`}
-                            className="hidden"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                // Actualizar cliente con nuevo documento
-                                const nuevoDoc = {
-                                  id: Date.now().toString(),
-                                  nombre: file.name,
-                                  tipo: 'documento_impositivo',
-                                  url: URL.createObjectURL(file),
-                                  fechaCarga: new Date().toISOString(),
-                                  estado: 'cargado' as const
-                                };
-                                
-                                const clienteActualizado = {
-                                  ...selectedCliente,
-                                  documentosImpositivos: [
-                                    ...(selectedCliente.documentosImpositivos || []),
-                                    nuevoDoc
-                                  ]
-                                };
-                                
-                                onEditCliente(clienteActualizado);
-                                setSelectedCliente(clienteActualizado);
-                              }
-                            }}
-                          />
-                          <label
-                            htmlFor={`new-client-doc-${index}`}
-                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700"
-                          >
-                            Subir
-                          </label>
+                    <button
+                      onClick={sincronizarPlantillas}
+                      disabled={syncStatus === 'syncing'}
+                      className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                    >
+                      Sincronizar Plantillas
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <div className="text-center">
+                    <Download className="mx-auto mb-3 text-blue-600" size={32} />
+                    <h4 className="font-semibold text-blue-800 mb-2">Exportar Datos</h4>
+                    <p className="text-sm text-blue-700 mb-4">
+                      Descarga los datos actuales en formato CSV
+                    </p>
+                    <button
+                      onClick={exportarDatos}
+                      disabled={syncStatus === 'syncing'}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    >
+                      Exportar CSV
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                  <div className="text-center">
+                    <Trash2 className="mx-auto mb-3 text-red-600" size={32} />
+                    <h4 className="font-semibold text-red-800 mb-2">Limpiar BD</h4>
+                    <p className="text-sm text-red-700 mb-4">
+                      Elimina todos los datos de la base de datos
+                    </p>
+                    <button
+                      onClick={limpiarBaseDatos}
+                      disabled={syncStatus === 'syncing'}
+                      className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                      Limpiar Todo
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Comparación de plantillas */}
+              <div className="bg-white border rounded-lg p-6">
+                <h4 className="font-semibold text-gray-800 mb-4">Estado de Plantillas</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h5 className="font-medium text-gray-700 mb-2">En el Sistema (76 plantillas)</h5>
+                    <div className="bg-gray-50 rounded p-3 max-h-40 overflow-y-auto">
+                      {organismos.map(org => (
+                        <div key={org} className="text-sm mb-1">
+                          <strong>{org}:</strong> {plantillasProcedimientos.filter(p => p.organismo === org).length} plantillas
                         </div>
                       ))}
                     </div>
                   </div>
-                )}
-
-                <div className="flex justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setShowForm(false)}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
-                  >
-                    {editingCliente ? 'Actualizar' : 'Crear'} Cliente
-                  </button>
+                  <div>
+                    <h5 className="font-medium text-gray-700 mb-2">En la Base de Datos ({dbStats.plantillas} plantillas)</h5>
+                    <div className="bg-gray-50 rounded p-3 max-h-40 overflow-y-auto">
+                      {dbStats.plantillas === 0 ? (
+                        <p className="text-sm text-gray-500 italic">No hay plantillas en la BD</p>
+                      ) : (
+                        <p className="text-sm text-green-600">✅ Plantillas sincronizadas</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </form>
+              </div>
+
+              {/* Instrucciones */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 className="font-medium text-yellow-800 mb-2">💡 Instrucciones</h4>
+                <ol className="text-sm text-yellow-700 space-y-1">
+                  <li>1. <strong>Sincronizar Plantillas:</strong> Sube las 76 plantillas predefinidas</li>
+                  <li>2. <strong>Verificar Estado:</strong> Revisa que los datos se hayan cargado correctamente</li>
+                  <li>3. <strong>Exportar:</strong> Descarga backups de tus datos cuando sea necesario</li>
+                  <li>4. <strong>Limpiar:</strong> Solo en caso de necesitar resetear completamente</li>
+                </ol>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          )}
+
+          {activeTab === 'notificaciones' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-800">Configuración de Notificaciones</h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={configuracion.notificaciones.emailNotificaciones}
+                    onChange={(e) => setConfiguracion(prev => ({
+                      ...prev,
+                      notificaciones: { ...prev.notificaciones, emailNotificaciones: e.target.checked }
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label className="ml-2 text-sm text-gray-700">
+                    Recibir notificaciones por email
+                  </label>
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={configuracion.notificaciones.notificacionesVencimiento}
+                    onChange={(e) => setConfiguracion(prev => ({
+                      ...prev,
+                      notificaciones: { ...prev.notificaciones, notificacionesVencimiento: e.target.checked }
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label className="ml-2 text-sm text-gray-700">
+                    Alertas de vencimiento de procesos
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Días de anticipación para alertas
+                  </label>
+                  <input
+                    type="number"
+                    value={configuracion.notificaciones.diasAnticipacion}
+                    onChange={(e) => setConfiguracion(prev => ({
+                      ...prev,
+                      notificaciones: { ...prev.notificaciones, diasAnticipacion: Number(e.target.value) }
+                    }))}
+                    className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={configuracion.notificaciones.notificacionesDocumentos}
+                    onChange={(e) => setConfiguracion(prev => ({
+                      ...prev,
+                      notificaciones: { ...prev.notificaciones, notificacionesDocumentos: e.target.checked }
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label className="ml-2 text-sm text-gray-700">
+                    Notificaciones de documentos pendientes
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'api' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-800">Configuración de APIs</h3>
+              
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-4">Supabase</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        URL del Proyecto
+                      </label>
+                      <input
+                        type="url"
+                        value={configuracion.apiKeys.supabase.url}
+                        onChange={(e) => setConfiguracion(prev => ({
+                          ...prev,
+                          apiKeys: { ...prev.apiKeys, supabase: { ...prev.apiKeys.supabase, url: e.target.value } }
+                        }))}
+                        placeholder="https://tu-proyecto.supabase.co"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        readOnly
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Configurado en variables de entorno</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Anon Key
+                      </label>
+                      <input
+                        type="password"
+                        value={configuracion.apiKeys.supabase.anonKey}
+                        onChange={(e) => setConfiguracion(prev => ({
+                          ...prev,
+                          apiKeys: { ...prev.apiKeys, supabase: { ...prev.apiKeys.supabase, anonKey: e.target.value } }
+                        }))}
+                        placeholder="eyJ..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        readOnly
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Configurado en variables de entorno</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-4">OpenAI (para validación IA)</h4>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      API Key
+                    </label>
+                    <input
+                      type="password"
+                      value={configuracion.apiKeys.openai}
+                      onChange={(e) => setConfiguracion(prev => ({
+                        ...prev,
+                        apiKeys: { ...prev.apiKeys, openai: e.target.value }
+                      }))}
+                      placeholder="sk-..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Necesario para la validación automática de documentos</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
 
-export default ClientsView;
+export default SettingsView;
