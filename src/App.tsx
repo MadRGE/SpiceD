@@ -105,6 +105,77 @@ const App: React.FC = () => {
   } = useProveedores();
   const { 
     servicios, 
+    agregarServicio, 
+    actualizarServicio, 
+    eliminarServicio, 
+    aplicarAumento, 
+    notificaciones, 
+    agregarNotificacion, 
+    marcarNotificacionLeida 
+  } = useServicios();
+  const { 
+    validaciones, 
+    validarDocumento, 
+    reintentarValidacion, 
+    notificacionesSistema, 
+    setNotificacionesSistema 
+  } = useValidacionIA();
+
+  // Procesos con información completa para mostrar
+  const procesosDisplay: ProcesoDisplay[] = procesos.map(proceso => {
+    const cliente = clientes.find(c => c.id === proceso.clienteId);
+    const organismo = organismos.find(o => o.id === proceso.organismoId);
+    
+    return {
+      ...proceso,
+      cliente: cliente?.nombre || 'Cliente no encontrado',
+      organismo: organismo?.nombre || 'Organismo no encontrado'
+    };
+  });
+
+  // Función para crear proceso desde presupuesto
+  const crearProcesoDesdePresupuesto = (presupuestoId: string) => {
+    const presupuesto = presupuestos.find(p => p.id === presupuestoId);
+    if (!presupuesto) return;
+
+    const nuevoProceso = {
+      titulo: `Proceso para ${presupuesto.cliente}`,
+      descripcion: `Proceso creado desde presupuesto: ${presupuesto.descripcion}`,
+      estado: 'pendiente' as EstadoProceso,
+      fechaCreacion: new Date().toISOString(),
+      fechaInicio: new Date().toISOString(),
+      fechaVencimiento: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString(),
+      clienteId: presupuesto.clienteId,
+      organismoId: '1', // TODO: Mapear organismo correctamente
+      documentos: [],
+      progreso: 0,
+      prioridad: 'media' as any,
+      etiquetas: ['presupuesto'],
+      responsable: 'Usuario Actual',
+      comentarios: [],
+      costos: presupuesto.total,
+      presupuestoId: presupuesto.id,
+      facturado: false
+    };
+
+    agregarProceso(nuevoProceso);
+    setCurrentView('processes');
+    
+    // Notificar creación de proceso
+    agregarNotificacion({
+      id: Date.now().toString(),
+      tipo: 'nuevo_proceso',
+      modulo: 'procesos',
+      titulo: 'Proceso creado desde presupuesto',
+      mensaje: `Se creó un proceso desde el presupuesto de ${presupuesto.cliente}`,
+      fecha: new Date(),
+      leida: false,
+      prioridad: 'media'
+    });
+
+    alert(`Proceso creado desde presupuesto para ${presupuesto.cliente}`);
+  };
+
   // Función para crear proceso desde plantilla
   const crearProcesoDesdeTemplate = (templateId: string) => {
     const plantilla = plantillasProcedimientos.find(p => p.id === templateId);
@@ -572,7 +643,7 @@ const App: React.FC = () => {
                   { estado: 'aprobado', label: 'Aprobado', flag: '🟢', color: 'text-emerald-600' },
                   { estado: 'rechazado', label: 'Rechazado', flag: '🔴', color: 'text-red-700' },
                   { estado: 'archivado', label: 'Archivado', flag: '⚫', color: 'text-slate-600' }
-                ].map(({ estado, label, gradient }) => {
+                ].map(({ estado, label, flag, color }) => {
                   const count = procesos.filter(p => p.estado === estado).length;
                   return (
                     <div key={estado} className="flex items-center space-x-2 bg-white/50 rounded-lg p-2 hover:bg-white/70 transition-all">
