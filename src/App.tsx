@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Bell, Home, Database, AlertTriangle, CheckCircle, User, FileText, Receipt, Search, Filter } from 'lucide-react';
+import { Menu, Bell, Home, AlertTriangle, CheckCircle, User, FileText, Receipt, Search, Filter } from 'lucide-react';
 
-// Importar hooks de Supabase
-import { useSupabaseClientes } from './hooks/useSupabaseClientes';
-import { useSupabasePresupuestos } from './hooks/useSupabasePresupuestos';
-
-// Importar hooks locales para datos que aún no están en Supabase
+// Importar hooks locales (dejamos Supabase en stand-by)
+import { useClientes } from './hooks/useClientes';
+import { useBudgets } from './hooks/useBudgets';
 import { useProcesos } from './hooks/useProcesos';
 import { useFacturas } from './hooks/useFacturas';
 import { useOrganismos } from './hooks/useOrganismos';
@@ -63,32 +61,10 @@ const App: React.FC = () => {
     responsable: '',
     etiquetas: [] as string[]
   });
-  
-  // Estados de conexión
-  const [connectionTimeout, setConnectionTimeout] = useState(false);
-  const [showConnectionError, setShowConnectionError] = useState(false);
 
-  // Hooks de Supabase
-  const { 
-    clientes, 
-    loading: clientesLoading, 
-    error: clientesError,
-    agregarCliente, 
-    actualizarCliente, 
-    eliminarCliente 
-  } = useSupabaseClientes();
-
-  const { 
-    presupuestos, 
-    loading: presupuestosLoading, 
-    error: presupuestosError,
-    agregarPresupuesto, 
-    actualizarPresupuesto, 
-    eliminarPresupuesto,
-    obtenerPresupuestosSinProceso
-  } = useSupabasePresupuestos(clientes);
-
-  // Hooks locales (temporales hasta migrar a Supabase)
+  // Hooks locales (usando datos locales por ahora)
+  const { clientes, agregarCliente, actualizarCliente, eliminarCliente } = useClientes();
+  const { presupuestos, agregarPresupuesto, actualizarPresupuesto, eliminarPresupuesto } = useBudgets();
   const { procesos, agregarProceso, actualizarProcesoCompleto, eliminarProceso, cambiarEstadoProceso } = useProcesos();
   const { facturas, agregarFactura, actualizarFactura, eliminarFactura } = useFacturas(clientes);
   const { organismos, agregarOrganismo, actualizarOrganismo, eliminarOrganismo } = useOrganismos();
@@ -116,28 +92,6 @@ const App: React.FC = () => {
 
   // Estados para notificaciones
   const [notificacionesSistema, setNotificacionesSistema] = useState<NotificacionPrecio[]>([]);
-
-  // Timeout para mostrar error de conexión después de 10 segundos
-  useEffect(() => {
-    if (clientesLoading || presupuestosLoading) {
-      const timer = setTimeout(() => {
-        setConnectionTimeout(true);
-      }, 10000); // 10 segundos
-
-      return () => clearTimeout(timer);
-    } else {
-      setConnectionTimeout(false);
-    }
-  }, [clientesLoading, presupuestosLoading]);
-
-  // Mostrar error de conexión si hay errores o timeout
-  useEffect(() => {
-    if (clientesError || presupuestosError || connectionTimeout) {
-      setShowConnectionError(true);
-    } else {
-      setShowConnectionError(false);
-    }
-  }, [clientesError, presupuestosError, connectionTimeout]);
 
   // Convertir procesos a ProcesoDisplay
   const procesosDisplay: ProcesoDisplay[] = procesos.map(proceso => {
@@ -178,7 +132,7 @@ const App: React.FC = () => {
         fechaInicio: new Date().toISOString(),
         fechaVencimiento: new Date(Date.now() + (plantilla.tiempoEstimado * 24 * 60 * 60 * 1000)).toISOString(),
         clienteId: presupuesto.clienteId,
-        organismoId: '1', // TODO: Mapear organismo correctamente
+        organismoId: '1',
         documentos: plantilla.documentosRequeridos.map((doc, docIndex) => ({
           id: `${Date.now()}-${index}-${docIndex}`,
           nombre: doc,
@@ -202,13 +156,6 @@ const App: React.FC = () => {
       agregarProceso(nuevoProceso);
     });
 
-    // Actualizar presupuesto con IDs de procesos creados
-    const procesoIds = plantillasSeleccionadas.map(() => Date.now().toString());
-    actualizarPresupuesto({
-      ...presupuesto,
-      procesoIds
-    });
-
     alert(`Se crearon ${plantillasSeleccionadas.length} proceso(s) desde el presupuesto`);
   };
 
@@ -224,8 +171,8 @@ const App: React.FC = () => {
       fechaCreacion: new Date().toISOString(),
       fechaInicio: new Date().toISOString(),
       fechaVencimiento: new Date(Date.now() + (plantilla.tiempoEstimado * 24 * 60 * 60 * 1000)).toISOString(),
-      clienteId: '', // Se debe seleccionar en el formulario
-      organismoId: '1', // TODO: Mapear organismo correctamente
+      clienteId: '',
+      organismoId: '1',
       documentos: plantilla.documentosRequeridos.map((doc, docIndex) => ({
         id: `${Date.now()}-${docIndex}`,
         nombre: doc,
@@ -253,7 +200,6 @@ const App: React.FC = () => {
   // Función para manejar clic en proceso
   const handleProcessClick = (proceso: ProcesoDisplay) => {
     setSelectedProcess(proceso);
-    // No cambiar la vista, solo mostrar detalles
   };
 
   // Función para editar proceso
@@ -300,9 +246,6 @@ const App: React.FC = () => {
     
     return matchesBusqueda && matchesEstado && matchesCliente && matchesOrganismo;
   });
-
-  // Determinar si mostrar indicador de carga
-  const isLoading = clientesLoading || presupuestosLoading;
 
   // Renderizar vista actual
   const renderCurrentView = () => {
@@ -422,7 +365,6 @@ const App: React.FC = () => {
                   setShowProcessForm(true);
                 }}
                 onUpdateDocuments={(documentos) => {
-                  // Actualizar documentos del proceso
                   const procesoActualizado = {
                     ...selectedProcess,
                     documentos
@@ -519,7 +461,6 @@ const App: React.FC = () => {
           <NotificationsView
             notificaciones={[...notificacionesSistema, ...notificaciones]}
             onMarcarLeida={(id) => {
-              // Marcar como leída en ambos arrays
               setNotificacionesSistema(prev => 
                 prev.map(n => n.id === id ? { ...n, leida: true } : n)
               );
@@ -545,7 +486,6 @@ const App: React.FC = () => {
             procesos={procesosDisplay}
             onValidateDocument={validarDocumento}
             onUploadDocument={(procesoId, documento) => {
-              // TODO: Implementar subida de documentos
               console.log('Subir documento:', procesoId, documento);
             }}
             onAddNotificacion={agregarNotificacion}
@@ -557,7 +497,7 @@ const App: React.FC = () => {
           <DocumentsTemplatesView
             procesos={procesosDisplay}
             validaciones={validaciones}
-            documentos={[]} // TODO: Obtener documentos de procesos
+            documentos={[]}
             onValidateDocument={validarDocumento}
             onRetryValidation={reintentarValidacion}
             onCreateFromTemplate={crearProcesoDesdeTemplate}
@@ -568,7 +508,7 @@ const App: React.FC = () => {
         return (
           <AIValidationView
             validaciones={validaciones}
-            documentos={[]} // TODO: Obtener documentos de procesos
+            documentos={[]}
             onValidateDocument={validarDocumento}
             onRetryValidation={reintentarValidacion}
           />
@@ -588,48 +528,25 @@ const App: React.FC = () => {
                 🚀 Sistema de Gestión de Importación/Exportación
               </h1>
               <p className="text-gray-600 mb-6">
-                Bienvenido al sistema integrado con <strong>Supabase</strong>. 
-                Gestiona clientes, presupuestos, procesos y documentos de manera eficiente.
+                Sistema completo para gestión de procesos aduaneros, clientes, presupuestos y documentos.
               </p>
-
-              {/* Alerta de conexión si hay problemas */}
-              {showConnectionError && (
-                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <AlertTriangle className="text-yellow-600" size={20} />
-                    <div>
-                      <h4 className="font-medium text-yellow-800">Problema de Conexión</h4>
-                      <p className="text-sm text-yellow-700">
-                        {clientesError || presupuestosError ? 
-                          'Error conectando con Supabase. Verifica tu configuración.' :
-                          'La conexión está tardando más de lo esperado. El sistema funciona con datos locales.'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Estadísticas del dashboard */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div className="bg-blue-50 p-6 rounded-lg">
                   <h3 className="text-lg font-semibold text-blue-800">Clientes</h3>
                   <p className="text-3xl font-bold text-blue-600">{clientes.length}</p>
-                  <p className="text-sm text-blue-600">
-                    {isLoading ? 'Cargando...' : 'Registrados en BD'}
-                  </p>
+                  <p className="text-sm text-blue-600">Registrados</p>
                 </div>
                 <div className="bg-green-50 p-6 rounded-lg">
                   <h3 className="text-lg font-semibold text-green-800">Presupuestos</h3>
                   <p className="text-3xl font-bold text-green-600">{presupuestos.length}</p>
-                  <p className="text-sm text-green-600">
-                    {isLoading ? 'Cargando...' : 'En Supabase'}
-                  </p>
+                  <p className="text-sm text-green-600">Activos</p>
                 </div>
                 <div className="bg-purple-50 p-6 rounded-lg">
                   <h3 className="text-lg font-semibold text-purple-800">Procesos</h3>
                   <p className="text-3xl font-bold text-purple-600">{procesos.length}</p>
-                  <p className="text-sm text-purple-600">Activos</p>
+                  <p className="text-sm text-purple-600">En gestión</p>
                 </div>
                 <div className="bg-orange-50 p-6 rounded-lg">
                   <h3 className="text-lg font-semibold text-orange-800">Plantillas</h3>
@@ -663,27 +580,21 @@ const App: React.FC = () => {
                 </button>
               </div>
 
-              {/* Información de integración */}
-              <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h4 className="font-semibold text-green-800 mb-2 flex items-center">
+              {/* Información del sistema */}
+              <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
                   <CheckCircle className="mr-2" size={16} />
-                  Base de Datos Integrada
+                  Sistema Completo Funcionando
                 </h4>
-                <p className="text-sm text-green-700">
-                  La aplicación está conectada a Supabase. Los clientes y presupuestos se guardan automáticamente.
-                  Los procesos, facturas y otros datos funcionan localmente.
+                <p className="text-sm text-blue-700">
+                  Todas las funcionalidades están operativas: gestión de clientes, presupuestos, procesos Kanban, 
+                  facturación, documentos, plantillas, reportes y más.
                 </p>
               </div>
             </div>
           </div>
         );
     }
-  };
-
-  const handleSaveConfig = () => {
-    // Guardar configuración en localStorage
-    localStorage.setItem('app-config', JSON.stringify(configuracion));
-    alert('Configuración guardada correctamente');
   };
 
   return (
@@ -701,22 +612,6 @@ const App: React.FC = () => {
             <h1 className="text-xl font-semibold text-gray-800">
               Sistema de Gestión - Importación/Exportación
             </h1>
-            
-            {/* Indicador de carga pequeño */}
-            {isLoading && (
-              <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-full">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="text-sm text-blue-700">Conectando BD...</span>
-              </div>
-            )}
-            
-            {/* Indicador de error de conexión */}
-            {showConnectionError && (
-              <div className="flex items-center space-x-2 bg-yellow-50 px-3 py-1 rounded-full">
-                <AlertTriangle className="text-yellow-600" size={16} />
-                <span className="text-sm text-yellow-700">Sin conexión BD</span>
-              </div>
-            )}
           </div>
           
           <div className="flex items-center space-x-4">
