@@ -656,31 +656,75 @@ const App: React.FC = () => {
         // Dashboard principal con todas las estadísticas
         return (
           <div className="space-y-6">
-            {/* Estado de Procesos - ARRIBA DE TODO */}
+            {/* Estado de Procesos con Banderitas - ARRIBA DE TODO */}
             <div className="card-modern p-6">
-              <h2 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+              <h3 className="text-lg font-semibold mb-4 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
                 Estado de Procesos
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                 {[
-                  { estado: 'pendiente', label: 'Pendiente', gradient: 'from-red-400 to-red-600' },
-                  { estado: 'recopilacion-docs', label: 'Recopilación', gradient: 'from-orange-400 to-orange-600' },
-                  { estado: 'enviado', label: 'Enviado', gradient: 'from-blue-400 to-blue-600' },
-                  { estado: 'revision', label: 'Revisión', gradient: 'from-purple-400 to-purple-600' },
-                  { estado: 'aprobado', label: 'Aprobado', gradient: 'from-emerald-400 to-emerald-600' },
-                  { estado: 'rechazado', label: 'Rechazado', gradient: 'from-red-500 to-pink-600' },
-                  { estado: 'archivado', label: 'Archivado', gradient: 'from-slate-400 to-slate-600' }
+                  { estado: 'pendiente', label: 'Pendiente', flag: '🔴', color: 'text-red-600' },
+                  { estado: 'recopilacion-docs', label: 'Recopilación', flag: '🟠', color: 'text-orange-600' },
+                  { estado: 'enviado', label: 'Enviado', flag: '🔵', color: 'text-blue-600' },
+                  { estado: 'revision', label: 'Revisión', flag: '🟣', color: 'text-purple-600' },
+                  { estado: 'aprobado', label: 'Aprobado', flag: '🟢', color: 'text-emerald-600' },
+                  { estado: 'rechazado', label: 'Rechazado', flag: '🔴', color: 'text-red-700' },
+                  { estado: 'archivado', label: 'Archivado', flag: '⚫', color: 'text-slate-600' }
                 ].map(({ estado, label, gradient }) => {
                   const count = procesos.filter(p => p.estado === estado).length;
                   return (
-                    <div key={estado} className="text-center">
-                      <div className={`w-16 h-16 bg-gradient-to-r ${gradient} rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xl text-white font-bold text-xl hover-lift cursor-pointer`}>
-                        {count}
+                    <div key={estado} className="flex items-center space-x-2 bg-white/50 rounded-lg p-2 hover:bg-white/70 transition-all">
+                      <span className="text-lg">{flag}</span>
+                      <div className="flex-1">
+                        <div className="text-xs text-slate-600">{label}</div>
+                        <div className={`font-bold ${color}`}>{count}</div>
                       </div>
-                      <div className="text-sm text-slate-600 font-medium">{label}</div>
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* KPIs Financieros */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="card-modern p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Receipt className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-emerald-600">
+                  ${presupuestos.reduce((sum, p) => sum + (p.total || 0), 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Total Presupuestado</div>
+              </div>
+              
+              <div className="card-modern p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <FileText className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-blue-600">
+                  ${facturas.reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Total Facturado</div>
+              </div>
+              
+              <div className="card-modern p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-green-600">
+                  ${facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Total Cobrado</div>
+              </div>
+              
+              <div className="card-modern p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <AlertTriangle className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-orange-600">
+                  ${facturas.filter(f => f.estado === 'enviada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Pendiente de Cobro</div>
               </div>
             </div>
 
@@ -693,6 +737,7 @@ const App: React.FC = () => {
                 <button
                   onClick={() => setCurrentView('budgets')}
                   className="card-gradient p-6 hover-lift group text-center"
+                  title="Crear y gestionar presupuestos para clientes"
                 >
                   <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
                     <Receipt className="text-white" size={24} />
@@ -703,6 +748,7 @@ const App: React.FC = () => {
                 <button
                   onClick={() => setCurrentView('clients')}
                   className="card-gradient p-6 hover-lift group text-center"
+                  title="Administrar información de clientes y documentos"
                 >
                   <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
                     <User className="text-white" size={24} />
@@ -713,6 +759,7 @@ const App: React.FC = () => {
                 <button
                   onClick={() => setCurrentView('processes')}
                   className="card-gradient p-6 hover-lift group text-center"
+                  title="Ver y gestionar todos los procesos en tablero Kanban"
                 >
                   <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
                     <FileText className="text-white" size={24} />
@@ -723,6 +770,7 @@ const App: React.FC = () => {
                 <button
                   onClick={() => setCurrentView('templates')}
                   className="card-gradient p-6 hover-lift group text-center"
+                  title="Usar plantillas predefinidas para crear procesos"
                 >
                   <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
                     <FileText className="text-white" size={24} />
@@ -733,6 +781,7 @@ const App: React.FC = () => {
                 <button
                   onClick={() => setCurrentView('logistics')}
                   className="card-gradient p-6 hover-lift group text-center"
+                  title="Gestión logística y seguimiento de envíos"
                 >
                   <div className="w-12 h-12 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
                     <FileText className="text-white" size={24} />
@@ -741,8 +790,9 @@ const App: React.FC = () => {
                 </button>
                 
                 <button
-                  onClick={() => setCurrentView('financial')}
+                  onClick={() => setCurrentView('accounting')}
                   className="card-gradient p-6 hover-lift group text-center"
+                  title="Estado contable, facturación y finanzas"
                 >
                   <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
                     <Receipt className="text-white" size={24} />
@@ -752,6 +802,7 @@ const App: React.FC = () => {
               </div>
             </div>
             {/* Panel lateral con estadísticas pequeñas */}
+            
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Contenido principal */}
               <div className="lg:col-span-3 space-y-6">
@@ -767,7 +818,7 @@ const App: React.FC = () => {
               </div>
 
               {/* Panel lateral con estadísticas */}
-              <div className="lg:col-span-1 space-y-4">
+              <div className="lg:col-span-1 space-y-6">
                 <div className="card-modern p-4">
                   <h3 className="font-semibold text-slate-800 mb-3 text-center">Estadísticas</h3>
                   
@@ -811,6 +862,28 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Notificaciones recientes */}
+                <div className="card-modern p-4">
+                  <h3 className="font-semibold text-slate-800 mb-3 text-center">Notificaciones</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">No leídas:</span>
+                      <span className="font-bold text-red-600">{notificacionesNoLeidas}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Total:</span>
+                      <span className="font-bold text-blue-600">{[...notificacionesSistema, ...notificaciones].length}</span>
+                    </div>
+                    {notificacionesNoLeidas > 0 && (
+                      <button
+                        onClick={() => setCurrentView('notifications')}
+                        className="w-full text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 transition-colors"
+                      >
+                        Ver Notificaciones
+                      </button>
+                    )}
+                  </div>
+                </div>
                 {/* Estado financiero resumido */}
                 <div className="card-modern p-4">
                   <h3 className="font-semibold text-slate-800 mb-3 text-center">Estado Financiero</h3>
@@ -827,6 +900,13 @@ const App: React.FC = () => {
                         ${facturasProveedores.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
                       </span>
                     </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-600">Balance:</span>
+                      <span className="font-bold text-blue-600 text-sm">
+                        ${(facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0) - 
+                           facturasProveedores.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0)).toLocaleString()}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -834,6 +914,88 @@ const App: React.FC = () => {
           </div>
         );
     }
+  };
+
+  // Función mejorada para crear proceso desde presupuesto
+  const crearProcesoDesdePresupuesto = (presupuesto: any) => {
+    const plantillasSeleccionadas = plantillasProcedimientos.filter(p => 
+      presupuesto.plantillasIds?.includes(p.id)
+    );
+
+    if (plantillasSeleccionadas.length === 0) {
+      alert('No se encontraron plantillas asociadas al presupuesto');
+      return;
+    }
+
+    // Crear un proceso por cada plantilla seleccionada
+    plantillasSeleccionadas.forEach((plantilla, index) => {
+      const nuevoProceso = {
+        titulo: `${plantilla.nombre} - ${presupuesto.cliente.nombre}`,
+        descripcion: `Proceso creado desde presupuesto ${presupuesto.numero}`,
+        estado: 'pendiente' as EstadoProceso,
+        fechaCreacion: new Date().toISOString(),
+        fechaInicio: new Date().toISOString(),
+        fechaVencimiento: new Date(Date.now() + (plantilla.tiempoEstimado * 24 * 60 * 60 * 1000)).toISOString(),
+        clienteId: presupuesto.clienteId,
+        organismoId: '1', // TODO: Mapear organismo correctamente
+        documentos: plantilla.documentosRequeridos.map((doc, docIndex) => ({
+          id: `${Date.now()}-${index}-${docIndex}`,
+          nombre: doc,
+          tipo: 'requerido' as const,
+          estado: 'pendiente' as const,
+          fechaCarga: new Date().toISOString(),
+          validado: false,
+          tipoDocumento: 'Documento requerido'
+        })),
+        progreso: 0,
+        prioridad: 'media' as any,
+        etiquetas: [presupuesto.tipoOperacion.toLowerCase()],
+        responsable: 'Usuario Actual',
+        comentarios: [],
+        costos: presupuesto.total,
+        plantillaId: plantilla.id,
+        facturado: false,
+        presupuestoId: presupuesto.id
+      };
+
+      agregarProceso(nuevoProceso);
+    });
+
+    // Crear factura automáticamente
+    const nuevaFactura = {
+      numero: generarNumeroFactura(),
+      clienteId: presupuesto.clienteId,
+      cliente: presupuesto.cliente,
+      fecha: new Date(),
+      fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
+      items: presupuesto.items,
+      subtotal: presupuesto.subtotal,
+      iva: presupuesto.iva,
+      total: presupuesto.total,
+      estado: 'enviada' as const,
+      notas: `Factura generada desde presupuesto ${presupuesto.numero}`,
+      fechaCreacion: new Date(),
+      fechaActualizacion: new Date(),
+      presupuestoId: presupuesto.id,
+      tipo: 'cliente' as const
+    };
+
+    agregarFactura(nuevaFactura);
+
+    // Notificar creación de procesos y factura
+    agregarNotificacion({
+      id: Date.now().toString(),
+      tipo: 'nuevo_proceso',
+      modulo: 'procesos',
+      titulo: 'Procesos y factura creados',
+      mensaje: `Se crearon ${plantillasSeleccionadas.length} proceso(s) y 1 factura desde el presupuesto ${presupuesto.numero}`,
+      fecha: new Date(),
+      leida: false,
+      prioridad: 'media',
+      presupuestoId: presupuesto.id
+    });
+
+    alert(`✅ Se crearon ${plantillasSeleccionadas.length} proceso(s) y 1 factura desde el presupuesto`);
   };
 
   return (
