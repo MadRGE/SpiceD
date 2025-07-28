@@ -545,6 +545,43 @@ const App: React.FC = () => {
           />
         );
 
+      case 'logistics':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-800">Gestión Logística</h2>
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <p className="text-gray-600">Módulo de logística en desarrollo</p>
+            </div>
+          </div>
+        );
+
+      case 'financial':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-800">Estado Contable</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="font-semibold text-gray-800 mb-2">Ingresos</h3>
+                <p className="text-2xl font-bold text-green-600">
+                  ${facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="font-semibold text-gray-800 mb-2">Gastos</h3>
+                <p className="text-2xl font-bold text-red-600">
+                  ${facturasProveedores.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="font-semibold text-gray-800 mb-2">Balance</h3>
+                <p className="text-2xl font-bold text-blue-600">
+                  ${(facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0) - 
+                     facturasProveedores.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0)).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
       case 'analytics':
         return (
           <ReportsView
@@ -619,141 +656,40 @@ const App: React.FC = () => {
         // Dashboard principal con todas las estadísticas
         return (
           <div className="space-y-6">
-            <div className="card-modern p-8">
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl">
-                  <FileText className="text-white" size={32} />
-                </div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-4">
-                🚀 Sistema de Gestión de Importación/Exportación
-              </h1>
-                <p className="text-slate-600 text-lg max-w-2xl mx-auto">
-                Sistema completo para gestión de procesos aduaneros, clientes, presupuestos, facturación y documentos.
-              </p>
+            {/* Estado de Procesos - ARRIBA DE TODO */}
+            <div className="card-modern p-6">
+              <h2 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+                Estado de Procesos
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                {[
+                  { estado: 'pendiente', label: 'Pendiente', gradient: 'from-red-400 to-red-600' },
+                  { estado: 'recopilacion-docs', label: 'Recopilación', gradient: 'from-orange-400 to-orange-600' },
+                  { estado: 'enviado', label: 'Enviado', gradient: 'from-blue-400 to-blue-600' },
+                  { estado: 'revision', label: 'Revisión', gradient: 'from-purple-400 to-purple-600' },
+                  { estado: 'aprobado', label: 'Aprobado', gradient: 'from-emerald-400 to-emerald-600' },
+                  { estado: 'rechazado', label: 'Rechazado', gradient: 'from-red-500 to-pink-600' },
+                  { estado: 'archivado', label: 'Archivado', gradient: 'from-slate-400 to-slate-600' }
+                ].map(({ estado, label, gradient }) => {
+                  const count = procesos.filter(p => p.estado === estado).length;
+                  return (
+                    <div key={estado} className="text-center">
+                      <div className={`w-16 h-16 bg-gradient-to-r ${gradient} rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xl text-white font-bold text-xl hover-lift cursor-pointer`}>
+                        {count}
+                      </div>
+                      <div className="text-sm text-slate-600 font-medium">{label}</div>
+                    </div>
+                  );
+                })}
               </div>
+            </div>
 
-              {/* Estadísticas principales del dashboard */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="card-gradient p-6 hover-lift group">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-700 group-hover:text-blue-700 transition-colors">Clientes</h3>
-                      <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">{clientes.length}</p>
-                      <p className="text-sm text-slate-600">Registrados</p>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                      <User className="text-white" size={24} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card-gradient p-6 hover-lift group">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-700 group-hover:text-emerald-700 transition-colors">Presupuestos</h3>
-                      <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-800 bg-clip-text text-transparent">{presupuestos.length}</p>
-                      <p className="text-sm text-slate-600">Activos</p>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                      <Receipt className="text-white" size={24} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card-gradient p-6 hover-lift group">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-700 group-hover:text-purple-700 transition-colors">Procesos</h3>
-                      <p className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">{procesos.length}</p>
-                      <p className="text-sm text-slate-600">En gestión</p>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                      <FileText className="text-white" size={24} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card-gradient p-6 hover-lift group">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-700 group-hover:text-orange-700 transition-colors">Plantillas</h3>
-                      <p className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent">{plantillasProcedimientos.length}</p>
-                      <p className="text-sm text-slate-600">Disponibles</p>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                      <FileText className="text-white" size={24} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Estadísticas adicionales */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-indigo-50 p-6 rounded-lg border border-indigo-200">
-                  <h3 className="text-lg font-semibold text-indigo-800 mb-2">Facturas</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-indigo-700">Total:</span>
-                      <span className="font-medium text-indigo-800">{facturas.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-indigo-700">Pagadas:</span>
-                      <span className="font-medium text-green-600">
-                        {facturas.filter(f => f.estado === 'pagada').length}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-indigo-700">Pendientes:</span>
-                      <span className="font-medium text-orange-600">
-                        {facturas.filter(f => f.estado === 'enviada').length}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-teal-50 p-6 rounded-lg border border-teal-200">
-                  <h3 className="text-lg font-semibold text-teal-800 mb-2">Organismos</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-teal-700">Total:</span>
-                      <span className="font-medium text-teal-800">{organismos.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-teal-700">Públicos:</span>
-                      <span className="font-medium text-teal-600">
-                        {organismos.filter(o => o.tipo === 'publico').length}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-teal-700">Privados:</span>
-                      <span className="font-medium text-teal-600">
-                        {organismos.filter(o => o.tipo === 'privado').length}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-pink-50 p-6 rounded-lg border border-pink-200">
-                  <h3 className="text-lg font-semibold text-pink-800 mb-2">Proveedores</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-pink-700">Total:</span>
-                      <span className="font-medium text-pink-800">{proveedores.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-pink-700">Facturas:</span>
-                      <span className="font-medium text-pink-600">{facturasProveedores.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-pink-700">Servicios:</span>
-                      <span className="font-medium text-pink-600">{servicios.length}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Acciones rápidas */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {/* Menú de Acciones Principales - DEBAJO DEL ESTADO */}
+            <div className="card-modern p-6">
+              <h3 className="text-xl font-semibold text-center mb-6 text-slate-800">
+                Acciones Principales
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 <button
                   onClick={() => setCurrentView('budgets')}
                   className="card-gradient p-6 hover-lift group text-center"
@@ -763,6 +699,7 @@ const App: React.FC = () => {
                   </div>
                   <span className="block font-semibold text-slate-700">Crear Presupuesto</span>
                 </button>
+                
                 <button
                   onClick={() => setCurrentView('clients')}
                   className="card-gradient p-6 hover-lift group text-center"
@@ -772,6 +709,7 @@ const App: React.FC = () => {
                   </div>
                   <span className="block font-semibold text-slate-700">Gestionar Clientes</span>
                 </button>
+                
                 <button
                   onClick={() => setCurrentView('processes')}
                   className="card-gradient p-6 hover-lift group text-center"
@@ -781,6 +719,7 @@ const App: React.FC = () => {
                   </div>
                   <span className="block font-semibold text-slate-700">Ver Procesos</span>
                 </button>
+                
                 <button
                   onClick={() => setCurrentView('templates')}
                   className="card-gradient p-6 hover-lift group text-center"
@@ -790,70 +729,107 @@ const App: React.FC = () => {
                   </div>
                   <span className="block font-semibold text-slate-700">Usar Plantillas</span>
                 </button>
+                
+                <button
+                  onClick={() => setCurrentView('logistics')}
+                  className="card-gradient p-6 hover-lift group text-center"
+                >
+                  <div className="w-12 h-12 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
+                    <FileText className="text-white" size={24} />
+                  </div>
+                  <span className="block font-semibold text-slate-700">Logística</span>
+                </button>
+                
+                <button
+                  onClick={() => setCurrentView('financial')}
+                  className="card-gradient p-6 hover-lift group text-center"
+                >
+                  <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
+                    <Receipt className="text-white" size={24} />
+                  </div>
+                  <span className="block font-semibold text-slate-700">Estado Contable</span>
+                </button>
               </div>
-
-              {/* Resumen de procesos por estado */}
-              <div className="card-gradient p-6">
-                <h3 className="text-lg font-semibold text-slate-800 mb-6 text-center">Estado de Procesos</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                  {[
-                    { estado: 'pendiente', label: 'Pendiente', gradient: 'from-red-400 to-red-600' },
-                    { estado: 'recopilacion-docs', label: 'Recopilación', gradient: 'from-orange-400 to-orange-600' },
-                    { estado: 'enviado', label: 'Enviado', gradient: 'from-blue-400 to-blue-600' },
-                    { estado: 'revision', label: 'Revisión', gradient: 'from-purple-400 to-purple-600' },
-                    { estado: 'aprobado', label: 'Aprobado', gradient: 'from-emerald-400 to-emerald-600' },
-                    { estado: 'rechazado', label: 'Rechazado', gradient: 'from-red-500 to-pink-600' },
-                    { estado: 'archivado', label: 'Archivado', gradient: 'from-slate-400 to-slate-600' }
-                  ].map(({ estado, label, gradient }) => {
-                    const count = procesos.filter(p => p.estado === estado).length;
-                    return (
-                      <div key={estado} className="text-center">
-                        <div className={`w-12 h-12 bg-gradient-to-r ${gradient} rounded-xl flex items-center justify-center mx-auto mb-2 shadow-lg text-white font-bold text-lg`}>
-                          {count}
-                        </div>
-                        <div className="text-xs text-slate-600 font-medium">{label}</div>
-                      </div>
-                    );
-                  })}
+            </div>
+            {/* Panel lateral con estadísticas pequeñas */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Contenido principal */}
+              <div className="lg:col-span-3 space-y-6">
+                {/* Título del sistema */}
+                <div className="text-center">
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2">
+                    🚀 Sistema de Gestión de Importación/Exportación
+                  </h1>
+                  <p className="text-slate-600">
+                    Sistema completo para gestión de procesos aduaneros
+                  </p>
                 </div>
               </div>
 
-              {/* Información del sistema */}
-              <div className="mt-8 card-gradient p-6">
-                <h4 className="font-semibold text-slate-800 mb-3 flex items-center justify-center">
-                  <CheckCircle className="mr-2" size={16} />
-                  Sistema Completo Funcionando
-                </h4>
-                <p className="text-sm text-slate-600 text-center">
-                  Todas las funcionalidades están operativas: gestión de clientes, presupuestos, procesos Kanban, 
-                  facturación, documentos, plantillas, reportes, validación IA, notificaciones y más.
-                </p>
-              </div>
-
-              {/* Notificaciones recientes */}
-              {(notificacionesSistema.length > 0 || notificaciones.length > 0) && (
-                <div className="mt-6 card-gradient p-6">
-                  <h4 className="font-semibold text-slate-800 mb-3 flex items-center justify-center">
-                    <Bell className="mr-2" size={16} />
-                    Notificaciones Recientes
-                  </h4>
-                  <div className="space-y-2">
-                    {[...notificacionesSistema, ...notificaciones]
-                      .filter(n => !n.leida)
-                      .slice(0, 3)
-                      .map(notif => (
-                        <div key={notif.id} className="text-sm text-slate-600 text-center">
-                          • {notif.titulo}
-                        </div>
-                      ))}
-                    {notificacionesNoLeidas > 3 && (
-                      <div className="text-sm text-slate-500 text-center">
-                        ...y {notificacionesNoLeidas - 3} más
-                      </div>
-                    )}
+              {/* Panel lateral con estadísticas */}
+              <div className="lg:col-span-1 space-y-4">
+                <div className="card-modern p-4">
+                  <h3 className="font-semibold text-slate-800 mb-3 text-center">Estadísticas</h3>
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Clientes:</span>
+                      <span className="font-bold text-blue-600">{clientes.length}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Presupuestos:</span>
+                      <span className="font-bold text-emerald-600">{presupuestos.length}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Procesos:</span>
+                      <span className="font-bold text-purple-600">{procesos.length}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Plantillas:</span>
+                      <span className="font-bold text-orange-600">{plantillasProcedimientos.length}</span>
+                    </div>
+                    
+                    <hr className="my-3" />
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Facturas:</span>
+                      <span className="font-bold text-indigo-600">{facturas.length}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Organismos:</span>
+                      <span className="font-bold text-teal-600">{organismos.length}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Proveedores:</span>
+                      <span className="font-bold text-pink-600">{proveedores.length}</span>
+                    </div>
                   </div>
                 </div>
-              )}
+
+                {/* Estado financiero resumido */}
+                <div className="card-modern p-4">
+                  <h3 className="font-semibold text-slate-800 mb-3 text-center">Estado Financiero</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-600">Ingresos:</span>
+                      <span className="font-bold text-green-600 text-sm">
+                        ${facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-600">Gastos:</span>
+                      <span className="font-bold text-red-600 text-sm">
+                        ${facturasProveedores.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         );

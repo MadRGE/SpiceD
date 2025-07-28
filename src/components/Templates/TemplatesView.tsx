@@ -10,6 +10,8 @@ const TemplatesView: React.FC<TemplatesViewProps> = ({ onCreateFromTemplate }) =
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrganismo, setSelectedOrganismo] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
 
   const filteredTemplates = plantillasProcedimientos.filter(template => {
     const matchesSearch = template.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -33,8 +35,20 @@ const TemplatesView: React.FC<TemplatesViewProps> = ({ onCreateFromTemplate }) =
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">Plantillas de Procedimientos</h2>
-        <div className="text-sm text-gray-600">
-          {filteredTemplates.length} de {plantillasProcedimientos.length} plantillas
+        <div className="flex items-center space-x-4">
+          <div className="text-sm text-gray-600">
+            {filteredTemplates.length} de {plantillasProcedimientos.length} plantillas
+          </div>
+          <button
+            onClick={() => {
+              setEditingTemplate(null);
+              setShowCreateForm(true);
+            }}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={20} />
+            <span>Nueva Plantilla</span>
+          </button>
         </div>
       </div>
 
@@ -120,6 +134,17 @@ const TemplatesView: React.FC<TemplatesViewProps> = ({ onCreateFromTemplate }) =
                       </div>
                       
                       <div className="flex items-center space-x-2 ml-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingTemplate(template);
+                            setShowCreateForm(true);
+                          }}
+                          className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                          title="Editar plantilla"
+                        >
+                          <Edit size={16} />
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -215,11 +240,127 @@ const TemplatesView: React.FC<TemplatesViewProps> = ({ onCreateFromTemplate }) =
               <div className="p-6 text-center text-gray-500">
                 <FileText size={48} className="mx-auto mb-4 text-gray-300" />
                 <p>Selecciona una plantilla para ver sus detalles</p>
+      {/* Modal de creación/edición de plantilla */}
+      {showCreateForm && (
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShowCreateForm(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b">
+                <h3 className="text-xl font-semibold">
+                  {editingTemplate ? 'Editar Plantilla' : 'Nueva Plantilla'}
+                </h3>
               </div>
+              
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const documentos = (formData.get('documentos') as string).split('\n').filter(d => d.trim());
+                
+                const nuevaPlantilla = {
+                  id: editingTemplate?.id || Date.now().toString(),
+                  nombre: formData.get('nombre') as string,
+                  organismo: formData.get('organismo') as string,
+                  documentosRequeridos: documentos,
+                  tiempoEstimado: Number(formData.get('tiempoEstimado')),
+                  costo: Number(formData.get('costo')) || undefined
+                };
+                
+                console.log('Plantilla guardada:', nuevaPlantilla);
+                alert(`Plantilla "${nuevaPlantilla.nombre}" ${editingTemplate ? 'actualizada' : 'creada'} correctamente`);
+                setShowCreateForm(false);
+                setEditingTemplate(null);
+              }} className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre de la Plantilla *
+                    </label>
+                    <input
+                      type="text"
+                      name="nombre"
+                      defaultValue={editingTemplate?.nombre}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Organismo *
+                    </label>
+                    <select
+                      name="organismo"
+                      defaultValue={editingTemplate?.organismo}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {organismos.map(org => (
+                        <option key={org} value={org}>{org}</option>
+                      ))}
+                    </select>
+                  </div>
             )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tiempo Estimado (días) *
+                    </label>
+                    <input
+                      type="number"
+                      name="tiempoEstimado"
+                      defaultValue={editingTemplate?.tiempoEstimado}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
           </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Costo Estimado
+                    </label>
+                    <input
+                      type="number"
+                      name="costo"
+                      defaultValue={editingTemplate?.costo}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
         </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Documentos Requeridos (uno por línea) *
+                    </label>
+                    <textarea
+                      name="documentos"
+                      defaultValue={editingTemplate?.documentosRequeridos?.join('\n')}
+                      required
+                      rows={6}
+                      placeholder="Documento 1&#10;Documento 2&#10;Documento 3"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
       </div>
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateForm(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
+                  >
+                    {editingTemplate ? 'Actualizar' : 'Crear'} Plantilla
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
 
       {filteredTemplates.length === 0 && (
         <div className="text-center py-12">

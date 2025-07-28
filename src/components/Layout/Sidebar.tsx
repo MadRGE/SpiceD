@@ -23,11 +23,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   const leftMenuItems = [
     { id: 'processes', label: 'Procesos', icon: FileText },
     { id: 'clients', label: 'Clientes', icon: Users },
+    { id: 'budgets', label: 'Presupuestos', icon: Receipt },
     { id: 'templates', label: 'Plantillas', icon: FolderOpen },
+    { id: 'logistics', label: 'Logística', icon: Truck },
   ];
 
   const rightMenuItems = [
     { id: 'billing', label: 'Facturación', icon: Receipt },
+    { id: 'financial', label: 'Estado Contable', icon: DollarSign },
     { id: 'analytics', label: 'Análisis', icon: BarChart3 },
     { id: 'settings', label: 'Configuración', icon: Settings },
     { id: 'help', label: 'Ayuda', icon: HelpCircle },
