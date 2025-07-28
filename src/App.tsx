@@ -105,43 +105,6 @@ const App: React.FC = () => {
   } = useProveedores();
   const { 
     servicios, 
-    notificaciones, 
-    agregarServicio, 
-    actualizarServicio, 
-    eliminarServicio, 
-    aplicarAumento, 
-    marcarNotificacionLeida,
-    agregarNotificacion: agregarNotificacionServicio
-  } = useServicios();
-  const { 
-    validaciones, 
-    loading: validacionLoading,
-    validarDocumento, 
-    reintentarValidacion,
-    obtenerValidacionPorDocumento
-  } = useValidacionIA();
-
-  // Estados para notificaciones del sistema
-  const [notificacionesSistema, setNotificacionesSistema] = useState<NotificacionPrecio[]>([]);
-
-  // Convertir procesos a ProcesoDisplay con toda la información
-  const procesosDisplay: ProcesoDisplay[] = procesos.map(proceso => {
-    const cliente = clientes.find(c => c.id === proceso.clienteId);
-    const organismo = organismos.find(o => o.id === proceso.organismoId);
-    
-    return {
-      ...proceso,
-      cliente: cliente?.nombre || 'Cliente no encontrado',
-      organismo: organismo?.nombre || 'Organismo no encontrado',
-      fechaInicio: proceso.fechaCreacion
-    };
-  });
-
-  // Función para agregar notificaciones del sistema
-  const agregarNotificacion = (notificacion: NotificacionPrecio) => {
-    setNotificacionesSistema(prev => [...prev, notificacion]);
-  };
-
   // Función para crear proceso desde plantilla
   const crearProcesoDesdeTemplate = (templateId: string) => {
     const plantilla = plantillasProcedimientos.find(p => p.id === templateId);
