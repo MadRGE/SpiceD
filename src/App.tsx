@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Bell, Home, AlertTriangle, CheckCircle, User, FileText, Receipt, Search, Filter, Database } from 'lucide-react';
 
-// Importar hooks locales (dejamos Supabase en stand-by como solicitaste)
+// Importar hooks locales
 import { useClientes } from './hooks/useClientes';
 import { useBudgets } from './hooks/useBudgets';
 import { useProcesos } from './hooks/useProcesos';
@@ -11,10 +11,9 @@ import { useProveedores } from './hooks/useProveedores';
 import { useServicios } from './hooks/useServicios';
 import { useValidacionIA } from './hooks/useValidacionIA';
 
-// Importar TODOS los componentes de vistas que habíamos creado
+// Importar componentes de vistas
 import ClientsView from './components/Clients/ClientsView';
 import BudgetsView from './components/Budgets/BudgetsView';
-import ProcessesView from './components/Processes/ProcessesView';
 import BillingView from './components/Billing/BillingView';
 import ReportsView from './components/Reports/ReportsView';
 import TemplatesView from './components/Templates/TemplatesView';
@@ -29,11 +28,9 @@ import AccountingView from './components/Accounting/AccountingView';
 import EntitiesView from './components/Entities/EntitiesView';
 import PricingView from './components/Pricing/PricingView';
 import DocumentsTemplatesView from './components/DocumentsTemplates/DocumentsTemplatesView';
-import ProcessCard from './components/Kanban/ProcessCard';
 import KanbanBoard from './components/Kanban/KanbanBoard';
 import ProcessForm from './components/Forms/ProcessForm';
 import ProcessDetails from './components/Processes/ProcessDetails';
-import DocumentManager from './components/Documents/DocumentManager';
 import SearchFilters from './components/Search/SearchFilters';
 
 // Tipos
@@ -66,7 +63,7 @@ const App: React.FC = () => {
     etiquetas: []
   });
 
-  // Hooks para TODAS las funcionalidades
+  // Hooks para todas las funcionalidades
   const { clientes, agregarCliente, actualizarCliente, eliminarCliente } = useClientes();
   const { presupuestos, agregarPresupuesto, actualizarPresupuesto, eliminarPresupuesto, buscarPresupuesto } = useBudgets();
   const { 
@@ -105,23 +102,26 @@ const App: React.FC = () => {
   } = useProveedores();
   const { 
     servicios, 
+    notificaciones, 
     agregarServicio, 
     actualizarServicio, 
     eliminarServicio, 
     aplicarAumento, 
-    notificaciones, 
-    agregarNotificacion, 
-    marcarNotificacionLeida 
+    marcarNotificacionLeida,
+    agregarNotificacion: agregarNotificacionServicio
   } = useServicios();
   const { 
     validaciones, 
+    loading: validacionLoading,
     validarDocumento, 
-    reintentarValidacion, 
-    notificacionesSistema, 
-    setNotificacionesSistema 
+    reintentarValidacion,
+    obtenerValidacionPorDocumento
   } = useValidacionIA();
 
-  // Procesos con información completa para mostrar
+  // Estados para notificaciones del sistema
+  const [notificacionesSistema, setNotificacionesSistema] = useState<NotificacionPrecio[]>([]);
+
+  // Convertir procesos a ProcesoDisplay con toda la información
   const procesosDisplay: ProcesoDisplay[] = procesos.map(proceso => {
     const cliente = clientes.find(c => c.id === proceso.clienteId);
     const organismo = organismos.find(o => o.id === proceso.organismoId);
@@ -129,51 +129,96 @@ const App: React.FC = () => {
     return {
       ...proceso,
       cliente: cliente?.nombre || 'Cliente no encontrado',
-      organismo: organismo?.nombre || 'Organismo no encontrado'
+      organismo: organismo?.nombre || 'Organismo no encontrado',
+      fechaInicio: proceso.fechaCreacion
     };
   });
 
-  // Función para crear proceso desde presupuesto
-  const crearProcesoDesdePresupuesto = (presupuestoId: string) => {
-    const presupuesto = presupuestos.find(p => p.id === presupuestoId);
-    if (!presupuesto) return;
+  // Función para agregar notificaciones del sistema
+  const agregarNotificacion = (notificacion: NotificacionPrecio) => {
+    setNotificacionesSistema(prev => [...prev, notificacion]);
+  };
 
-    const nuevoProceso = {
-      titulo: `Proceso para ${presupuesto.cliente}`,
-      descripcion: `Proceso creado desde presupuesto: ${presupuesto.descripcion}`,
-      estado: 'pendiente' as EstadoProceso,
-      fechaCreacion: new Date().toISOString(),
-      fechaInicio: new Date().toISOString(),
-      fechaVencimiento: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString(),
+  // Función ÚNICA para crear proceso desde presupuesto
+  const crearProcesoDesdePresupuesto = (presupuesto: any) => {
+    const plantillasSeleccionadas = plantillasProcedimientos.filter(p => 
+      presupuesto.plantillasIds?.includes(p.id)
+    );
+
+    if (plantillasSeleccionadas.length === 0) {
+      alert('No se encontraron plantillas asociadas al presupuesto');
+      return;
+    }
+
+    // Crear un proceso por cada plantilla seleccionada
+    plantillasSeleccionadas.forEach((plantilla, index) => {
+      const nuevoProceso = {
+        titulo: `${plantilla.nombre} - ${presupuesto.cliente.nombre}`,
+        descripcion: `Proceso creado desde presupuesto ${presupuesto.numero}`,
+        estado: 'pendiente' as EstadoProceso,
+        fechaCreacion: new Date().toISOString(),
+        fechaInicio: new Date().toISOString(),
+        fechaVencimiento: new Date(Date.now() + (plantilla.tiempoEstimado * 24 * 60 * 60 * 1000)).toISOString(),
+        clienteId: presupuesto.clienteId,
+        organismoId: '1', // TODO: Mapear organismo correctamente
+        documentos: plantilla.documentosRequeridos.map((doc, docIndex) => ({
+          id: `${Date.now()}-${index}-${docIndex}`,
+          nombre: doc,
+          tipo: 'requerido' as const,
+          estado: 'pendiente' as const,
+          fechaCarga: new Date().toISOString(),
+          validado: false,
+          tipoDocumento: 'Documento requerido'
+        })),
+        progreso: 0,
+        prioridad: 'media' as any,
+        etiquetas: [presupuesto.tipoOperacion.toLowerCase()],
+        responsable: 'Usuario Actual',
+        comentarios: [],
+        costos: presupuesto.total,
+        plantillaId: plantilla.id,
+        facturado: false,
+        presupuestoId: presupuesto.id
+      };
+
+      agregarProceso(nuevoProceso);
+    });
+
+    // Crear factura automáticamente
+    const nuevaFactura = {
+      numero: generarNumeroFactura(),
       clienteId: presupuesto.clienteId,
-      organismoId: '1', // TODO: Mapear organismo correctamente
-      documentos: [],
-      progreso: 0,
-      prioridad: 'media' as any,
-      etiquetas: ['presupuesto'],
-      responsable: 'Usuario Actual',
-      comentarios: [],
-      costos: presupuesto.total,
+      cliente: presupuesto.cliente,
+      fecha: new Date(),
+      fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
+      items: presupuesto.items,
+      subtotal: presupuesto.subtotal,
+      iva: presupuesto.iva,
+      total: presupuesto.total,
+      estado: 'enviada' as const,
+      notas: `Factura generada desde presupuesto ${presupuesto.numero}`,
+      fechaCreacion: new Date(),
+      fechaActualizacion: new Date(),
       presupuestoId: presupuesto.id,
-      facturado: false
+      tipo: 'cliente' as const
     };
 
-    agregarProceso(nuevoProceso);
-    setCurrentView('processes');
-    
-    // Notificar creación de proceso
+    agregarFactura(nuevaFactura);
+
+    // Notificar creación de procesos y factura
     agregarNotificacion({
       id: Date.now().toString(),
       tipo: 'nuevo_proceso',
       modulo: 'procesos',
-      titulo: 'Proceso creado desde presupuesto',
-      mensaje: `Se creó un proceso desde el presupuesto de ${presupuesto.cliente}`,
+      titulo: 'Procesos y factura creados',
+      mensaje: `Se crearon ${plantillasSeleccionadas.length} proceso(s) y 1 factura desde el presupuesto ${presupuesto.numero}`,
       fecha: new Date(),
       leida: false,
-      prioridad: 'media'
+      prioridad: 'media',
+      presupuestoId: presupuesto.id
     });
 
-    alert(`Proceso creado desde presupuesto para ${presupuesto.cliente}`);
+    alert(`✅ Se crearon ${plantillasSeleccionadas.length} proceso(s) y 1 factura desde el presupuesto`);
   };
 
   // Función para crear proceso desde plantilla
@@ -227,35 +272,31 @@ const App: React.FC = () => {
     alert(`Proceso "${plantilla.nombre}" creado desde plantilla`);
   };
 
-  // Función para manejar clic en proceso (ver detalles)
+  // Funciones de manejo de procesos
   const handleProcessClick = (proceso: ProcesoDisplay) => {
     setSelectedProcess(proceso);
   };
 
-  // Función para editar proceso
   const handleEditProcess = (proceso: ProcesoDisplay) => {
     setEditingProcess(proceso);
     setShowProcessForm(true);
   };
 
-  // Función para ver proceso (alias de handleProcessClick)
   const handleViewProcess = (proceso: ProcesoDisplay) => {
     setSelectedProcess(proceso);
   };
 
-  // Función para manejar navegación del sidebar
+  // Funciones de navegación
   const handleMenuSelect = (menu: string) => {
     setCurrentView(menu);
     setSelectedProcess(null);
-    setSidebarOpen(false); // Cerrar sidebar en móvil
+    setSidebarOpen(false);
   };
 
-  // Función para manejar notificaciones
   const handleNotificationsClick = () => {
     setCurrentView('notifications');
   };
 
-  // Función para volver al dashboard
   const handleHomeClick = () => {
     setCurrentView('dashboard');
     setSelectedProcess(null);
@@ -555,6 +596,7 @@ const App: React.FC = () => {
             </div>
           </div>
         );
+
       case 'analytics':
         return (
           <ReportsView
@@ -626,32 +668,38 @@ const App: React.FC = () => {
         return <HelpView />;
 
       default:
-        // Dashboard principal con todas las estadísticas
+        // Dashboard principal
         return (
           <div className="space-y-6">
-            {/* Estado de Procesos con Banderitas - ARRIBA DE TODO */}
-            <div className="card-modern p-6">
-              <h3 className="text-lg font-semibold mb-4 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                Estado de Procesos
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            {/* Título principal */}
+            <div className="text-center">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2">
+                🚀 Sistema de Gestión de Importación/Exportación
+              </h1>
+              <p className="text-slate-600 text-lg">
+                Sistema completo para gestión de procesos aduaneros
+              </p>
+            </div>
+
+            {/* Estados de procesos - Lista con banderitas */}
+            <div className="card-modern p-4">
+              <h3 className="text-lg font-semibold mb-3 text-slate-800">Estado de Procesos</h3>
+              <div className="flex flex-wrap gap-2">
                 {[
-                  { estado: 'pendiente', label: 'Pendiente', flag: '🔴', color: 'text-red-600' },
-                  { estado: 'recopilacion-docs', label: 'Recopilación', flag: '🟠', color: 'text-orange-600' },
-                  { estado: 'enviado', label: 'Enviado', flag: '🔵', color: 'text-blue-600' },
-                  { estado: 'revision', label: 'Revisión', flag: '🟣', color: 'text-purple-600' },
-                  { estado: 'aprobado', label: 'Aprobado', flag: '🟢', color: 'text-emerald-600' },
-                  { estado: 'rechazado', label: 'Rechazado', flag: '🔴', color: 'text-red-700' },
-                  { estado: 'archivado', label: 'Archivado', flag: '⚫', color: 'text-slate-600' }
-                ].map(({ estado, label, flag, color }) => {
+                  { estado: 'pendiente', label: 'Pendiente', flag: '🔴' },
+                  { estado: 'recopilacion-docs', label: 'Recopilación', flag: '🟠' },
+                  { estado: 'enviado', label: 'Enviado', flag: '🔵' },
+                  { estado: 'revision', label: 'Revisión', flag: '🟣' },
+                  { estado: 'aprobado', label: 'Aprobado', flag: '🟢' },
+                  { estado: 'rechazado', label: 'Rechazado', flag: '🔴' },
+                  { estado: 'archivado', label: 'Archivado', flag: '⚫' }
+                ].map(({ estado, label, flag }) => {
                   const count = procesos.filter(p => p.estado === estado).length;
                   return (
-                    <div key={estado} className="flex items-center space-x-2 bg-white/50 rounded-lg p-2 hover:bg-white/70 transition-all">
+                    <div key={estado} className="flex items-center space-x-2 bg-white/70 rounded-lg px-3 py-2 border">
                       <span className="text-lg">{flag}</span>
-                      <div className="flex-1">
-                        <div className="text-xs text-slate-600">{label}</div>
-                        <div className={`font-bold ${color}`}>{count}</div>
-                      </div>
+                      <span className="text-sm font-medium text-slate-700">{label}</span>
+                      <span className="bg-slate-100 text-slate-800 px-2 py-1 rounded-full text-xs font-bold">{count}</span>
                     </div>
                   );
                 })}
@@ -701,12 +749,12 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Menú de Acciones Principales - DEBAJO DEL ESTADO */}
+            {/* Menú de Acciones Principales */}
             <div className="card-modern p-6">
               <h3 className="text-xl font-semibold text-center mb-6 text-slate-800">
                 Acciones Principales
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <button
                   onClick={() => setCurrentView('budgets')}
                   className="card-gradient p-6 hover-lift group text-center"
@@ -774,68 +822,36 @@ const App: React.FC = () => {
                 </button>
               </div>
             </div>
-            {/* Panel lateral con estadísticas pequeñas */}
-            
+
+            {/* Panel lateral con estadísticas */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Contenido principal */}
-              <div className="lg:col-span-3 space-y-6">
-                {/* Título del sistema */}
-                <div className="text-center">
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2">
-                    🚀 Sistema de Gestión de Importación/Exportación
-                  </h1>
-                  <p className="text-slate-600">
-                    Sistema completo para gestión de procesos aduaneros
-                  </p>
-                </div>
+              <div className="lg:col-span-3">
+                {/* Espacio para contenido adicional si es necesario */}
               </div>
 
-              {/* Panel lateral con estadísticas */}
-              <div className="lg:col-span-1 space-y-6">
+              <div className="lg:col-span-1 space-y-4">
                 <div className="card-modern p-4">
                   <h3 className="font-semibold text-slate-800 mb-3 text-center">Estadísticas</h3>
-                  
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-slate-600">Clientes:</span>
                       <span className="font-bold text-blue-600">{clientes.length}</span>
                     </div>
-                    
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-slate-600">Presupuestos:</span>
                       <span className="font-bold text-emerald-600">{presupuestos.length}</span>
                     </div>
-                    
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-slate-600">Procesos:</span>
                       <span className="font-bold text-purple-600">{procesos.length}</span>
                     </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-slate-600">Plantillas:</span>
-                      <span className="font-bold text-orange-600">{plantillasProcedimientos.length}</span>
-                    </div>
-                    
-                    <hr className="my-3" />
-                    
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-slate-600">Facturas:</span>
                       <span className="font-bold text-indigo-600">{facturas.length}</span>
                     </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-slate-600">Organismos:</span>
-                      <span className="font-bold text-teal-600">{organismos.length}</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-slate-600">Proveedores:</span>
-                      <span className="font-bold text-pink-600">{proveedores.length}</span>
-                    </div>
                   </div>
                 </div>
 
-                {/* Notificaciones recientes */}
                 <div className="card-modern p-4">
                   <h3 className="font-semibold text-slate-800 mb-3 text-center">Notificaciones</h3>
                   <div className="space-y-2">
@@ -855,31 +871,6 @@ const App: React.FC = () => {
                         Ver Notificaciones
                       </button>
                     )}
-                  </div>
-                </div>
-                {/* Estado financiero resumido */}
-                <div className="card-modern p-4">
-                  <h3 className="font-semibold text-slate-800 mb-3 text-center">Estado Financiero</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-slate-600">Ingresos:</span>
-                      <span className="font-bold text-green-600 text-sm">
-                        ${facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-slate-600">Gastos:</span>
-                      <span className="font-bold text-red-600 text-sm">
-                        ${facturasProveedores.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-slate-600">Balance:</span>
-                      <span className="font-bold text-blue-600 text-sm">
-                        ${(facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0) - 
-                           facturasProveedores.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0)).toLocaleString()}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -912,7 +903,6 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            {/* Indicador de carga pequeño */}
             {isLoading && (
               <div className="flex items-center space-x-2 glass text-blue-800 px-3 py-1 rounded-full text-sm shadow-lg">
                 <Database className="animate-spin" size={14} />
@@ -962,7 +952,6 @@ const App: React.FC = () => {
         sidebarFixed ? (sidebarCollapsed ? 'ml-16' : 'ml-64') : 'ml-0'
       }`}>
         <div className="p-6">
-          {/* Alerta de error de conexión */}
           {showConnectionError && (
             <div className="card-modern bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 p-4 mb-6">
               <div className="flex items-center space-x-2">
