@@ -1,164 +1,259 @@
-import React from 'react';
-import { LayoutDashboard, FileText, BookTemplate as Template, BarChart3, Calendar, FolderOpen, Users, Receipt, Brain, Settings, HelpCircle, X, ChevronLeft, ChevronRight, Pin, PinOff, Building, Truck, DollarSign, Bell } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Save, FileText, User, Building, Calendar, DollarSign } from 'lucide-react';
+import { ProcesoDisplay, Cliente, Organismo } from '../../types';
+import { PlantillaProcedimiento } from '../../data/plantillas';
 
-interface SidebarProps {
-  open: boolean;
-  onClose: () => void;
-  onMenuSelect: (menu: string) => void;
-  isFixed: boolean;
-  onToggleFixed: () => void;
-  isCollapsed: boolean;
-  onToggleCollapsed: () => void;
+interface ProcessFormProps {
+  proceso?: ProcesoDisplay | null;
+  clientes: Cliente[];
+  organismos: Organismo[];
+  plantillas: PlantillaProcedimiento[];
+  onSave: (proceso: any) => void;
+  onCancel: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ 
-  open, 
-  onClose, 
-  onMenuSelect, 
-  isFixed, 
-  onToggleFixed, 
-  isCollapsed, 
-  onToggleCollapsed 
+const ProcessForm: React.FC<ProcessFormProps> = ({
+  proceso,
+  clientes,
+  organismos,
+  plantillas,
+  onSave,
+  onCancel
 }) => {
-  const leftMenuItems = [
-    { id: 'processes', label: 'Procesos', icon: FileText },
-    { id: 'clients', label: 'Clientes', icon: Users },
-    { id: 'templates', label: 'Plantillas', icon: FolderOpen },
-  ];
+  const [formData, setFormData] = useState({
+    titulo: proceso?.titulo || '',
+    descripcion: proceso?.descripcion || '',
+    clienteId: proceso?.clienteId || '',
+    organismoId: proceso?.organismoId || '',
+    plantillaId: proceso?.plantillaId || '',
+    fechaVencimiento: proceso?.fechaVencimiento ? 
+      new Date(proceso.fechaVencimiento).toISOString().split('T')[0] : '',
+    prioridad: proceso?.prioridad || 'media',
+    costos: proceso?.costos || 0,
+    notas: proceso?.notas || ''
+  });
 
-  const rightMenuItems = [
-    { id: 'billing', label: 'Facturación', icon: Receipt },
-    { id: 'analytics', label: 'Análisis', icon: BarChart3 },
-    { id: 'settings', label: 'Configuración', icon: Settings },
-    { id: 'help', label: 'Ayuda', icon: HelpCircle },
-  ];
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const plantillaSeleccionada = plantillas.find(p => p.id === formData.plantillaId);
+    
+    const procesoData = {
+      id: proceso?.id || Date.now().toString(),
+      titulo: formData.titulo,
+      descripcion: formData.descripcion,
+      estado: proceso?.estado || 'pendiente',
+      fechaCreacion: proceso?.fechaCreacion || new Date().toISOString(),
+      fechaInicio: proceso?.fechaInicio || new Date().toISOString(),
+      fechaVencimiento: formData.fechaVencimiento ? new Date(formData.fechaVencimiento).toISOString() : undefined,
+      clienteId: formData.clienteId,
+      organismoId: formData.organismoId,
+      plantillaId: formData.plantillaId,
+      documentos: proceso?.documentos || (plantillaSeleccionada ? 
+        plantillaSeleccionada.documentosRequeridos.map((doc, index) => ({
+          id: `${Date.now()}-${index}`,
+          nombre: doc,
+          tipo: 'requerido' as const,
+          estado: 'pendiente' as const,
+          fechaCarga: new Date().toISOString(),
+          validado: false,
+          tipoDocumento: 'Documento requerido'
+        })) : []
+      ),
+      progreso: proceso?.progreso || 0,
+      prioridad: formData.prioridad,
+      etiquetas: proceso?.etiquetas || [],
+      responsable: proceso?.responsable || 'Usuario Actual',
+      comentarios: proceso?.comentarios || [],
+      costos: formData.costos,
+      facturado: proceso?.facturado || false,
+      notas: formData.notas
+    };
 
-  // Si es fija, no mostrar overlay y usar posición diferente
-  if (isFixed) {
-    return (
-      <div className="fixed left-0 top-0 h-full bg-white shadow-lg z-30 w-16">
-        {/* Header */}
-        <div className="p-2 border-b bg-blue-600 text-white">
-          <button
-            onClick={onToggleFixed}
-            className="w-full p-2 hover:bg-blue-700 rounded-lg transition-colors"
-            title="Desanclar sidebar"
-          >
-            <PinOff size={16} className="mx-auto" />
-          </button>
-        </div>
-        
-        {/* Navigation */}
-        <nav className="flex flex-col h-full">
-          {/* Left side items (top) */}
-          <div className="p-2 space-y-1">
-            {leftMenuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onMenuSelect(item.id)}
-                  className="w-full flex items-center justify-center p-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors group"
-                  title={item.label}
-                >
-                  <Icon size={20} className="group-hover:text-blue-600" />
-                </button>
-              );
-            })}
-          </div>
-          
-          {/* Spacer */}
-          <div className="flex-1"></div>
-          
-          {/* Right side items (bottom) */}
-          <div className="p-2 space-y-1 border-t">
-            {rightMenuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onMenuSelect(item.id)}
-                  className="w-full flex items-center justify-center p-3 text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg transition-colors group"
-                  title={item.label}
-                >
-                  <Icon size={20} className="group-hover:text-blue-600" />
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-      </div>
-    );
-  }
-
-  // Sidebar modal (comportamiento original)
-  if (!open) return null;
+    onSave(procesoData);
+  };
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
-        onClick={onClose}
-      />
-      
-      {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-16 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
-        <div className="p-4 border-b bg-blue-600 text-white">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-blue-700 rounded-lg transition-colors"
-            >
-              <X size={20} />
-            </button>
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={onCancel} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-semibold">
+                {proceso ? 'Editar Proceso' : 'Nuevo Proceso'}
+              </h3>
+              <button
+                onClick={onCancel}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
           </div>
+          
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <FileText size={16} className="inline mr-2" />
+                  Título del Proceso *
+                </label>
+                <input
+                  type="text"
+                  value={formData.titulo}
+                  onChange={(e) => setFormData(prev => ({ ...prev, titulo: e.target.value }))}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <User size={16} className="inline mr-2" />
+                  Cliente *
+                </label>
+                <select
+                  value={formData.clienteId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, clienteId: e.target.value }))}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Seleccionar cliente...</option>
+                  {clientes.map(cliente => (
+                    <option key={cliente.id} value={cliente.id}>
+                      {cliente.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Building size={16} className="inline mr-2" />
+                  Organismo *
+                </label>
+                <select
+                  value={formData.organismoId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, organismoId: e.target.value }))}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Seleccionar organismo...</option>
+                  {organismos.map(organismo => (
+                    <option key={organismo.id} value={organismo.id}>
+                      {organismo.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Plantilla (Opcional)
+                </label>
+                <select
+                  value={formData.plantillaId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, plantillaId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Sin plantilla...</option>
+                  {plantillas.map(plantilla => (
+                    <option key={plantilla.id} value={plantilla.id}>
+                      {plantilla.nombre} - {plantilla.organismo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Calendar size={16} className="inline mr-2" />
+                  Fecha de Vencimiento
+                </label>
+                <input
+                  type="date"
+                  value={formData.fechaVencimiento}
+                  onChange={(e) => setFormData(prev => ({ ...prev, fechaVencimiento: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Prioridad
+                </label>
+                <select
+                  value={formData.prioridad}
+                  onChange={(e) => setFormData(prev => ({ ...prev, prioridad: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="baja">Baja</option>
+                  <option value="media">Media</option>
+                  <option value="alta">Alta</option>
+                  <option value="urgente">Urgente</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <DollarSign size={16} className="inline mr-2" />
+                  Costos Estimados
+                </label>
+                <input
+                  type="number"
+                  value={formData.costos}
+                  onChange={(e) => setFormData(prev => ({ ...prev, costos: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Descripción
+                </label>
+                <textarea
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Notas
+                </label>
+                <textarea
+                  value={formData.notas}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notas: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-4 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                <Save size={16} />
+                <span>{proceso ? 'Actualizar' : 'Crear'} Proceso</span>
+              </button>
+            </div>
+          </form>
         </div>
-        
-        <nav className="flex flex-col h-full">
-          <div className="p-2 space-y-1">
-            {leftMenuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    onMenuSelect(item.id);
-                    onClose();
-                  }}
-                  className="w-full flex items-center justify-center p-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors group"
-                  title={item.label}
-                >
-                  <Icon size={20} className="group-hover:text-blue-600" />
-                </button>
-              );
-            })}
-          </div>
-          
-          <div className="flex-1"></div>
-          
-          <div className="p-2 space-y-1 border-t">
-            {rightMenuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    onMenuSelect(item.id);
-                    onClose();
-                  }}
-                  className="w-full flex items-center justify-center p-3 text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg transition-colors group"
-                  title={item.label}
-                >
-                  <Icon size={20} className="group-hover:text-blue-600" />
-                </button>
-              );
-            })}
-          </div>
-        </nav>
       </div>
     </>
   );
 };
 
-export default Sidebar;
+export default ProcessForm;

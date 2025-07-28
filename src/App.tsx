@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Bell, Home, Database, AlertTriangle, CheckCircle, User, FileText, Receipt } from 'lucide-react';
+import { Menu, Bell, Home, Database, AlertTriangle, CheckCircle, User, FileText, Receipt, Search, Filter } from 'lucide-react';
 
 // Importar hooks de Supabase
 import { useSupabaseClientes } from './hooks/useSupabaseClientes';
@@ -31,6 +31,12 @@ import AccountingView from './components/Accounting/AccountingView';
 import EntitiesView from './components/Entities/EntitiesView';
 import PricingView from './components/Pricing/PricingView';
 import DocumentsTemplatesView from './components/DocumentsTemplates/DocumentsTemplatesView';
+import ProcessCard from './components/Kanban/ProcessCard';
+import KanbanBoard from './components/Kanban/KanbanBoard';
+import ProcessForm from './components/Forms/ProcessForm';
+import ProcessDetails from './components/Processes/ProcessDetails';
+import DocumentManager from './components/Documents/DocumentManager';
+import SearchFilters from './components/Search/SearchFilters';
 
 // Tipos
 import { ProcesoDisplay, EstadoProceso, NotificacionPrecio } from './types';
@@ -43,6 +49,20 @@ const App: React.FC = () => {
   const [sidebarFixed, setSidebarFixed] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState<ProcesoDisplay | null>(null);
+  const [showProcessForm, setShowProcessForm] = useState(false);
+  const [editingProcess, setEditingProcess] = useState<ProcesoDisplay | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filtros, setFiltros] = useState({
+    busqueda: '',
+    estado: 'todos' as any,
+    cliente: '',
+    organismo: '',
+    prioridad: 'todas' as any,
+    fechaDesde: undefined as Date | undefined,
+    fechaHasta: undefined as Date | undefined,
+    responsable: '',
+    etiquetas: [] as string[]
+  });
   
   // Estados de conexión
   const [connectionTimeout, setConnectionTimeout] = useState(false);
@@ -233,7 +253,18 @@ const App: React.FC = () => {
   // Función para manejar clic en proceso
   const handleProcessClick = (proceso: ProcesoDisplay) => {
     setSelectedProcess(proceso);
-    setCurrentView('process-details');
+    // No cambiar la vista, solo mostrar detalles
+  };
+
+  // Función para editar proceso
+  const handleEditProcess = (proceso: ProcesoDisplay) => {
+    setEditingProcess(proceso);
+    setShowProcessForm(true);
+  };
+
+  // Función para ver proceso
+  const handleViewProcess = (proceso: ProcesoDisplay) => {
+    setSelectedProcess(proceso);
   };
 
   // Función para manejar navegación del sidebar
@@ -256,6 +287,19 @@ const App: React.FC = () => {
   // Contar notificaciones no leídas
   const notificacionesNoLeidas = notificacionesSistema.filter(n => !n.leida).length + 
                                  notificaciones.filter(n => !n.leida).length;
+
+  // Filtrar procesos según filtros aplicados
+  const procesosFiltrados = procesosDisplay.filter(proceso => {
+    const matchesBusqueda = !filtros.busqueda || 
+      proceso.titulo.toLowerCase().includes(filtros.busqueda.toLowerCase()) ||
+      proceso.cliente.toLowerCase().includes(filtros.busqueda.toLowerCase());
+    
+    const matchesEstado = filtros.estado === 'todos' || proceso.estado === filtros.estado;
+    const matchesCliente = !filtros.cliente || proceso.cliente.toLowerCase().includes(filtros.cliente.toLowerCase());
+    const matchesOrganismo = !filtros.organismo || proceso.organismo === filtros.organismo;
+    
+    return matchesBusqueda && matchesEstado && matchesCliente && matchesOrganismo;
+  });
 
   // Determinar si mostrar indicador de carga
   const isLoading = clientesLoading || presupuestosLoading;
@@ -292,17 +336,103 @@ const App: React.FC = () => {
 
       case 'processes':
         return (
-          <ProcessesView
-            procesos={procesosDisplay}
-            clientes={clientes}
-            presupuestosSinProceso={obtenerPresupuestosSinProceso()}
-            onAddProceso={agregarProceso}
-            onEditProceso={actualizarProcesoCompleto}
-            onDeleteProceso={eliminarProceso}
-            onChangeState={cambiarEstadoProceso}
-            onProcessClick={handleProcessClick}
-            onCreateFromBudget={crearProcesoDesdePresupuesto}
-          />
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-800">Gestión de Procesos</h2>
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setShowFilters(true)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  <Filter size={20} />
+                  <span>Filtros</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingProcess(null);
+                    setShowProcessForm(true);
+                  }}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <FileText size={20} />
+                  <span>Nuevo Proceso</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Tablero Kanban */}
+            <KanbanBoard
+              procesos={procesosFiltrados}
+              onView={handleViewProcess}
+              onEdit={handleEditProcess}
+              onDelete={eliminarProceso}
+              onChangeState={cambiarEstadoProceso}
+            />
+
+            {/* Filtros */}
+            <SearchFilters
+              open={showFilters}
+              onClose={() => setShowFilters(false)}
+              filtros={filtros}
+              onFiltrosChange={setFiltros}
+              onClearFilters={() => setFiltros({
+                busqueda: '',
+                estado: 'todos' as any,
+                cliente: '',
+                organismo: '',
+                prioridad: 'todas' as any,
+                fechaDesde: undefined,
+                fechaHasta: undefined,
+                responsable: '',
+                etiquetas: []
+              })}
+            />
+
+            {/* Modal de formulario de proceso */}
+            {showProcessForm && (
+              <ProcessForm
+                proceso={editingProcess}
+                clientes={clientes}
+                organismos={organismos}
+                plantillas={plantillasProcedimientos}
+                onSave={(proceso) => {
+                  if (editingProcess) {
+                    actualizarProcesoCompleto(proceso);
+                  } else {
+                    agregarProceso(proceso);
+                  }
+                  setShowProcessForm(false);
+                  setEditingProcess(null);
+                }}
+                onCancel={() => {
+                  setShowProcessForm(false);
+                  setEditingProcess(null);
+                }}
+              />
+            )}
+
+            {/* Modal de detalles del proceso */}
+            {selectedProcess && (
+              <ProcessDetails
+                proceso={selectedProcess}
+                onClose={() => setSelectedProcess(null)}
+                onEdit={() => {
+                  setEditingProcess(selectedProcess);
+                  setSelectedProcess(null);
+                  setShowProcessForm(true);
+                }}
+                onUpdateDocuments={(documentos) => {
+                  // Actualizar documentos del proceso
+                  const procesoActualizado = {
+                    ...selectedProcess,
+                    documentos
+                  };
+                  actualizarProcesoCompleto(procesoActualizado);
+                  setSelectedProcess(procesoActualizado);
+                }}
+              />
+            )}
+          </div>
         );
 
       case 'billing':
