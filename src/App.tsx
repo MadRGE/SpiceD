@@ -142,67 +142,6 @@ const App: React.FC = () => {
     setNotificacionesSistema(prev => [...prev, notificacion]);
   };
 
-  // Función para crear proceso desde presupuesto
-  const crearProcesoDesdePresupuesto = (presupuesto: any) => {
-    const plantillasSeleccionadas = plantillasProcedimientos.filter(p => 
-      presupuesto.plantillasIds?.includes(p.id)
-    );
-
-    if (plantillasSeleccionadas.length === 0) {
-      alert('No se encontraron plantillas asociadas al presupuesto');
-      return;
-    }
-
-    // Crear un proceso por cada plantilla seleccionada
-    plantillasSeleccionadas.forEach((plantilla, index) => {
-      const nuevoProceso = {
-        titulo: `${plantilla.nombre} - ${presupuesto.cliente.nombre}`,
-        descripcion: `Proceso creado desde presupuesto ${presupuesto.numero}`,
-        estado: 'pendiente' as EstadoProceso,
-        fechaCreacion: new Date().toISOString(),
-        fechaInicio: new Date().toISOString(),
-        fechaVencimiento: new Date(Date.now() + (plantilla.tiempoEstimado * 24 * 60 * 60 * 1000)).toISOString(),
-        clienteId: presupuesto.clienteId,
-        organismoId: '1', // TODO: Mapear organismo correctamente
-        documentos: plantilla.documentosRequeridos.map((doc, docIndex) => ({
-          id: `${Date.now()}-${index}-${docIndex}`,
-          nombre: doc,
-          tipo: 'requerido' as const,
-          estado: 'pendiente' as const,
-          fechaCarga: new Date().toISOString(),
-          validado: false,
-          tipoDocumento: 'Documento requerido'
-        })),
-        progreso: 0,
-        prioridad: 'media' as any,
-        etiquetas: [presupuesto.tipoOperacion.toLowerCase()],
-        responsable: 'Usuario Actual',
-        comentarios: [],
-        costos: presupuesto.total,
-        plantillaId: plantilla.id,
-        facturado: false,
-        presupuestoId: presupuesto.id
-      };
-
-      agregarProceso(nuevoProceso);
-    });
-
-    // Notificar creación de procesos
-    agregarNotificacion({
-      id: Date.now().toString(),
-      tipo: 'nuevo_proceso',
-      modulo: 'procesos',
-      titulo: 'Procesos creados desde presupuesto',
-      mensaje: `Se crearon ${plantillasSeleccionadas.length} proceso(s) desde el presupuesto ${presupuesto.numero}`,
-      fecha: new Date(),
-      leida: false,
-      prioridad: 'media',
-      presupuestoId: presupuesto.id
-    });
-
-    alert(`Se crearon ${plantillasSeleccionadas.length} proceso(s) desde el presupuesto`);
-  };
-
   // Función para crear proceso desde plantilla
   const crearProcesoDesdeTemplate = (templateId: string) => {
     const plantilla = plantillasProcedimientos.find(p => p.id === templateId);
