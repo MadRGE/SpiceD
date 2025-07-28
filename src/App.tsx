@@ -160,30 +160,6 @@ const App: React.FC = () => {
             </button>
             <button
               onClick={() => setCurrentView('analytics')}
-      estado: 'pendiente' as EstadoProceso,
-      fechaCreacion: new Date().toISOString(),
-      fechaInicio: new Date().toISOString(),
-      fechaVencimiento: new Date(Date.now() + (plantilla.tiempoEstimado * 24 * 60 * 60 * 1000)).toISOString(),
-      clienteId: '', // Se debe seleccionar en el formulario
-      organismoId: '1', // TODO: Mapear organismo correctamente
-      documentos: plantilla.documentosRequeridos.map((doc, docIndex) => ({
-        id: `${Date.now()}-${docIndex}`,
-        nombre: doc,
-        tipo: 'requerido' as const,
-        estado: 'pendiente' as const,
-        fechaCarga: new Date().toISOString(),
-        validado: false,
-        tipoDocumento: 'Documento requerido'
-      })),
-      progreso: 0,
-      prioridad: 'media' as any,
-      etiquetas: [plantilla.organismo.toLowerCase()],
-      responsable: 'Usuario Actual',
-      comentarios: [],
-      costos: plantilla.costo || 0,
-      plantillaId: plantilla.id,
-      facturado: false
-    };
 
     agregarProceso(nuevoProceso);
     setCurrentView('processes');
