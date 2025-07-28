@@ -662,6 +662,45 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="card-modern p-6 text-center">
                 <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Receipt className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-emerald-600 mb-1">
+                  ${presupuestos.reduce((sum, p) => sum + (p.total || 0), 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Total Presupuestado</div>
+              </div>
+              
+              <div className="card-modern p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <FileText className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-blue-600 mb-1">
+                  ${facturas.reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Total Facturado</div>
+              </div>
+              
+              <div className="card-modern p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-green-600 mb-1">
+                  ${facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Total Cobrado</div>
+              </div>
+              
+              <div className="card-modern p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <AlertTriangle className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-orange-600 mb-1">
+                  ${facturas.filter(f => f.estado === 'enviada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Pendiente de Cobro</div>
+              </div>
+            </div>
+
             {/* Layout responsivo con estadísticas en lateral superior */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Contenido principal */}
