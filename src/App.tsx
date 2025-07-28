@@ -134,56 +134,32 @@ const App: React.FC = () => {
   });
 
   // Función para crear proceso desde presupuesto
-  const crearProcesoDesdePresupuesto = (presupuestoId: string) => {
-    const presupuesto = presupuestos.find(p => p.id === presupuestoId);
-    if (!presupuesto) return;
-
-    const nuevoProceso = {
-      titulo: `Proceso para ${presupuesto.cliente}`,
-      descripcion: `Proceso creado desde presupuesto: ${presupuesto.descripcion}`,
-      estado: 'pendiente' as EstadoProceso,
-      fechaCreacion: new Date().toISOString(),
-      fechaInicio: new Date().toISOString(),
-      fechaVencimiento: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString(),
-      clienteId: presupuesto.clienteId,
-      organismoId: '1', // TODO: Mapear organismo correctamente
-      documentos: [],
-      progreso: 0,
-      prioridad: 'media' as any,
-      etiquetas: ['presupuesto'],
-      responsable: 'Usuario Actual',
-      comentarios: [],
-      costos: presupuesto.total,
-      presupuestoId: presupuesto.id,
-      facturado: false
-    };
-
-    agregarProceso(nuevoProceso);
-    setCurrentView('processes');
-    
-    // Notificar creación de proceso
-    agregarNotificacion({
-      id: Date.now().toString(),
-      tipo: 'nuevo_proceso',
-      modulo: 'procesos',
-      titulo: 'Proceso creado desde presupuesto',
-      mensaje: `Se creó un proceso desde el presupuesto de ${presupuesto.cliente}`,
-      fecha: new Date(),
-      leida: false,
-      prioridad: 'media'
-    });
-
-    alert(`Proceso creado desde presupuesto para ${presupuesto.cliente}`);
-  };
-
-  // Función para crear proceso desde plantilla
-  const crearProcesoDesdeTemplate = (templateId: string) => {
-    const plantilla = plantillasProcedimientos.find(p => p.id === templateId);
-    if (!plantilla) return;
-
-    const nuevoProceso = {
-      titulo: plantilla.nombre,
-      descripcion: `Proceso creado desde plantilla: ${plantilla.nombre}`,
+              }`}
+            >
+              Clientes
+            </button>
+            <button
+              onClick={() => setCurrentView('budgets')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                currentView === 'budgets' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-600 hover:bg-white/70'
+              }`}
+            >
+              Presupuestos
+            </button>
+            <button
+              onClick={() => setCurrentView('billing')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                currentView === 'billing' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-600 hover:bg-white/70'
+              }`}
+            >
+              Facturación
+            </button>
+            <button
+              onClick={() => setCurrentView('analytics')}
       estado: 'pendiente' as EstadoProceso,
       fechaCreacion: new Date().toISOString(),
       fechaInicio: new Date().toISOString(),
@@ -520,40 +496,73 @@ const App: React.FC = () => {
 
       case 'logistics':
         return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800">Gestión Logística</h2>
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <p className="text-gray-600">Módulo de logística en desarrollo</p>
-            </div>
-          </div>
+          <EntitiesView
+            organismos={organismos}
+            proveedores={proveedores}
+            facturasProveedores={facturasProveedores}
+            onAddOrganismo={agregarOrganismo}
+            onEditOrganismo={actualizarOrganismo}
+            onDeleteOrganismo={eliminarOrganismo}
+            onAddProveedor={agregarProveedor}
+            onEditProveedor={actualizarProveedor}
+            onDeleteProveedor={eliminarProveedor}
+            onAddFacturaProveedor={agregarFacturaProveedor}
+            onEditFacturaProveedor={actualizarFacturaProveedor}
+            onDeleteFacturaProveedor={eliminarFacturaProveedor}
+          />
         );
 
       case 'financial':
         return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800">Estado Contable</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="font-semibold text-gray-800 mb-2">Ingresos</h3>
-                <p className="text-2xl font-bold text-green-600">
-                  ${facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="font-semibold text-gray-800 mb-2">Gastos</h3>
-                <p className="text-2xl font-bold text-red-600">
-                  ${facturasProveedores.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="font-semibold text-gray-800 mb-2">Balance</h3>
-                <p className="text-2xl font-bold text-blue-600">
-                  ${(facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0) - 
-                     facturasProveedores.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0)).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
+          <AccountingView
+            clientes={clientes}
+            facturas={facturas}
+            proveedores={proveedores}
+            facturasProveedores={facturasProveedores}
+            onAddCliente={agregarCliente}
+            onEditCliente={actualizarCliente}
+            onDeleteCliente={eliminarCliente}
+            onAddFactura={agregarFactura}
+            onEditFactura={actualizarFactura}
+            onDeleteFactura={eliminarFactura}
+            onAddProveedor={agregarProveedor}
+            onEditProveedor={actualizarProveedor}
+            onDeleteProveedor={eliminarProveedor}
+            onAddFacturaProveedor={agregarFacturaProveedor}
+            onEditFacturaProveedor={actualizarFacturaProveedor}
+            onDeleteFacturaProveedor={eliminarFacturaProveedor}
+          />
+        );
+
+      case 'pricing':
+        return (
+          <PricingView
+            servicios={servicios}
+            notificaciones={notificaciones}
+            onAddServicio={agregarServicio}
+            onEditServicio={actualizarServicio}
+            onDeleteServicio={eliminarServicio}
+            onAplicarAumento={aplicarAumento}
+            onMarcarNotificacionLeida={marcarNotificacionLeida}
+          />
+        );
+
+      case 'entities':
+        return (
+          <EntitiesView
+            organismos={organismos}
+            proveedores={proveedores}
+            facturasProveedores={facturasProveedores}
+            onAddOrganismo={agregarOrganismo}
+            onEditOrganismo={actualizarOrganismo}
+            onDeleteOrganismo={eliminarOrganismo}
+            onAddProveedor={agregarProveedor}
+            onEditProveedor={actualizarProveedor}
+            onDeleteProveedor={eliminarProveedor}
+            onAddFacturaProveedor={agregarFacturaProveedor}
+            onEditFacturaProveedor={actualizarFacturaProveedor}
+            onDeleteFacturaProveedor={eliminarFacturaProveedor}
+          />
         );
       case 'analytics':
         return (
@@ -675,35 +684,6 @@ const App: React.FC = () => {
                   <FileText className="text-white" size={24} />
                 </div>
                 <div className="text-2xl font-bold text-blue-600 mb-1">
-                  ${facturas.reduce((sum, f) => sum + f.total, 0).toLocaleString()}
-                </div>
-                <div className="text-sm text-slate-600">Total Facturado</div>
-              </div>
-              
-              <div className="card-modern p-6 text-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle className="text-white" size={24} />
-                </div>
-                <div className="text-2xl font-bold text-green-600 mb-1">
-                  ${facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
-                </div>
-                <div className="text-sm text-slate-600">Total Cobrado</div>
-              </div>
-              
-              <div className="card-modern p-6 text-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <AlertTriangle className="text-white" size={24} />
-                </div>
-                <div className="text-2xl font-bold text-orange-600 mb-1">
-                  ${facturas.filter(f => f.estado === 'enviada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
-                </div>
-                <div className="text-sm text-slate-600">Pendiente de Cobro</div>
-              </div>
-            </div>
-
-            {/* Layout responsivo con estadísticas en lateral superior */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Contenido principal */}
               <div className="lg:col-span-3">
                 {/* Estados de procesos - Lista con banderitas */}
                 <div className="card-modern p-4">
