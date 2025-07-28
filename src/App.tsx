@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Bell, Home } from 'lucide-react';
+import { Menu, Bell, Home, Database } from 'lucide-react';
 
 // Importar hooks de Supabase
 import { useSupabaseClientes } from './hooks/useSupabaseClientes';
@@ -172,12 +172,86 @@ const App: React.FC = () => {
   // Mostrar loading si los datos principales están cargando
   if (clientesLoading || presupuestosLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-700">Cargando datos...</h2>
-          <p className="text-gray-500">Conectando con la base de datos</p>
-        </div>
+      <div className="min-h-screen bg-gray-100">
+        {/* Header con indicador de carga */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Menu size={24} />
+              </button>
+              <h1 className="text-xl font-semibold text-gray-800">
+                Sistema de Gestión - Importación/Exportación
+              </h1>
+              {/* Indicador de carga pequeño */}
+              <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-full">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-sm text-blue-700">Cargando datos...</span>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleNotificationsClick}
+                className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Bell size={20} />
+                {notificacionesNoLeidas > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {notificacionesNoLeidas > 9 ? '9+' : notificacionesNoLeidas}
+                  </span>
+                )}
+              </button>
+              
+              {currentView !== 'dashboard' && (
+                <button
+                  onClick={handleHomeClick}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Home size={20} />
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Sidebar */}
+        <Sidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onMenuSelect={handleMenuSelect}
+          isFixed={sidebarFixed}
+          onToggleFixed={() => setSidebarFixed(!sidebarFixed)}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+
+        {/* Main Content con mensaje de carga */}
+        <main className={`transition-all duration-300 ${
+          sidebarFixed ? (sidebarCollapsed ? 'ml-16' : 'ml-64') : 'ml-0'
+        }`}>
+          <div className="p-6">
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <div className="animate-pulse">
+                <div className="w-16 h-16 bg-blue-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                  <Database className="text-blue-600" size={32} />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                  Conectando con Supabase...
+                </h2>
+                <p className="text-gray-500 mb-4">
+                  Cargando clientes y presupuestos desde la base de datos
+                </p>
+                <div className="w-64 bg-gray-200 rounded-full h-2 mx-auto">
+                  <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
