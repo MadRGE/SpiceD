@@ -140,6 +140,51 @@ const App: React.FC = () => {
   };
 
   // Función ÚNICA para crear proceso desde presupuesto
+  const crearProcesoDesdePresupuesto = (presupuesto: any, plantillasSeleccionadas: string[]) => {
+    // Crear procesos según plantillas seleccionadas
+    plantillasSeleccionadas.forEach(plantillaId => {
+      const plantilla = plantillasProcedimientos.find(p => p.id === plantillaId);
+      if (!plantilla) return;
+
+      const nuevoProceso = {
+        titulo: `${plantilla.nombre} - ${presupuesto.cliente}`,
+        descripcion: `Proceso creado desde presupuesto ${presupuesto.numero}`,
+        estado: 'pendiente' as EstadoProceso,
+        fechaCreacion: new Date().toISOString(),
+        fechaInicio: new Date().toISOString(),
+        fechaVencimiento: new Date(Date.now() + (plantilla.tiempoEstimado * 24 * 60 * 60 * 1000)).toISOString(),
+        clienteId: presupuesto.clienteId,
+        organismoId: '1', // TODO: Mapear organismo correctamente
+        documentos: plantilla.documentosRequeridos.map((doc, docIndex) => ({
+          id: `${Date.now()}-${docIndex}`,
+          nombre: doc,
+          tipo: 'requerido' as const,
+          estado: 'pendiente' as const,
+          fechaCarga: new Date().toISOString(),
+          validado: false,
+          tipoDocumento: 'Documento requerido'
+        })),
+        progreso: 0,
+        prioridad: 'media' as any,
+        etiquetas: [plantilla.organismo.toLowerCase()],
+        responsable: 'Usuario Actual',
+        comentarios: [],
+        costos: plantilla.costo || 0,
+        plantillaId: plantilla.id,
+        presupuestoId: presupuesto.id,
+        facturado: false
+      };
+
+      agregarProceso(nuevoProceso);
+    });
+
+    // Crear factura desde presupuesto
+    const nuevaFactura = {
+      id: Date.now().toString(),
+      numero: generarNumeroFactura(),
+      clienteId: presupuesto.clienteId,
+      cliente: presupuesto.cliente,
+      fecha: new Date(),
       fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
       items: presupuesto.items,
       subtotal: presupuesto.subtotal,
