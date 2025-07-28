@@ -160,30 +160,615 @@ const App: React.FC = () => {
             </button>
             <button
               onClick={() => setCurrentView('analytics')}
-
-    agregarProceso(nuevoProceso);
-    setCurrentView('processes');
+      proceso.titulo.toLowerCase().includes(filtros.busqueda.toLowerCase()) ||
+      proceso.cliente.toLowerCase().includes(filtros.busqueda.toLowerCase()) ||
+      proceso.organismo.toLowerCase().includes(filtros.busqueda.toLowerCase());
     
-    // Notificar creación de proceso
-    agregarNotificacion({
-      id: Date.now().toString(),
-      tipo: 'nuevo_proceso',
-      modulo: 'procesos',
-      titulo: 'Proceso creado desde plantilla',
-      mensaje: `Se creó el proceso "${plantilla.nombre}" desde plantilla`,
-      fecha: new Date(),
-      leida: false,
-      prioridad: 'media'
-    });
+    const matchesEstado = filtros.estado === 'todos' || proceso.estado === filtros.estado;
+    const matchesCliente = !filtros.cliente || proceso.cliente.toLowerCase().includes(filtros.cliente.toLowerCase());
+    const matchesOrganismo = !filtros.organismo || proceso.organismo === filtros.organismo;
+    const matchesPrioridad = filtros.prioridad === 'todas' || proceso.prioridad === filtros.prioridad;
+    
+    // Filtros de fecha
+    let matchesFecha = true;
+    if (filtros.fechaDesde) {
+      matchesFecha = matchesFecha && new Date(proceso.fechaCreacion) >= filtros.fechaDesde;
+    }
+    if (filtros.fechaHasta) {
+      matchesFecha = matchesFecha && new Date(proceso.fechaCreacion) <= filtros.fechaHasta;
+    }
+    
+    return matchesBusqueda && matchesEstado && matchesCliente && matchesOrganismo && matchesPrioridad && matchesFecha;
+  });
 
-    alert(`Proceso "${plantilla.nombre}" creado desde plantilla`);
+  // Renderizar vista actual
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case 'clients':
+        return (
+          <ClientsView
+            clientes={clientes}
+            procesos={procesosDisplay}
+            facturas={facturas}
+            onAddCliente={agregarCliente}
+            onEditCliente={actualizarCliente}
+            onDeleteCliente={eliminarCliente}
+            onProcessClick={handleProcessClick}
+            setCurrentView={setCurrentView}
+          />
+        );
+
+      case 'budgets':
+        return (
+          <BudgetsView
+            presupuestos={presupuestos}
+            clientes={clientes}
+            servicios={servicios}
+            onAddPresupuesto={agregarPresupuesto}
+            onEditPresupuesto={actualizarPresupuesto}
+            onDeletePresupuesto={eliminarPresupuesto}
+            onCreateProcess={crearProcesoDesdePresupuesto}
+          />
+        );
+
+      case 'processes':
+        return (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-800">Gestión de Procesos</h2>
+              <div className="flex items-center space-x-4">
+                <div className="text-sm text-gray-600">
+                  {procesosFiltrados.length} de {procesosDisplay.length} procesos
+                </div>
+                <button
+                  onClick={() => setShowFilters(true)}
+                  className="btn-secondary flex items-center space-x-2"
+                >
+                  <Filter size={20} />
+                  <span>Filtros</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingProcess(null);
+                    setShowProcessForm(true);
+                  }}
+                  className="btn-primary flex items-center space-x-2"
+                >
+                  <FileText size={20} />
+                  <span>Nuevo Proceso</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Tablero Kanban */}
+            <KanbanBoard
+              procesos={procesosFiltrados}
+              onView={handleViewProcess}
+              onEdit={handleEditProcess}
+              onDelete={eliminarProceso}
+              onChangeState={cambiarEstadoProceso}
+            />
+
+            {/* Filtros */}
+            <SearchFilters
+              open={showFilters}
+              onClose={() => setShowFilters(false)}
+              filtros={filtros}
+              onFiltrosChange={setFiltros}
+              onClearFilters={() => setFiltros({
+                busqueda: '',
+                estado: 'todos' as any,
+                cliente: '',
+                organismo: '',
+                prioridad: 'todas' as any,
+                fechaDesde: undefined,
+                fechaHasta: undefined,
+                responsable: '',
+                etiquetas: []
+              })}
+            />
+
+            {/* Modal de formulario de proceso */}
+            {showProcessForm && (
+              <ProcessForm
+                proceso={editingProcess}
+                clientes={clientes}
+                organismos={organismos}
+                plantillas={plantillasProcedimientos}
+                onSave={(proceso) => {
+                  if (editingProcess) {
+                    actualizarProcesoCompleto(proceso);
+                  } else {
+                    agregarProceso(proceso);
+                  }
+                  setShowProcessForm(false);
+                  setEditingProcess(null);
+                }}
+                onCancel={() => {
+                  setShowProcessForm(false);
+                  setEditingProcess(null);
+                }}
+              />
+            )}
+
+            {/* Modal de detalles del proceso */}
+            {selectedProcess && (
+              <ProcessDetails
+                proceso={selectedProcess}
+                onClose={() => setSelectedProcess(null)}
+                onEdit={() => {
+                  setEditingProcess(selectedProcess);
+                  setSelectedProcess(null);
+                  setShowProcessForm(true);
+                }}
+                onUpdateDocuments={(documentos) => {
+                  const procesoActualizado = {
+                    ...selectedProcess,
+                    documentos
+                  };
+                  actualizarProcesoCompleto(procesoActualizado);
+                  setSelectedProcess(procesoActualizado);
+                }}
+              />
+            )}
+          </div>
+        );
+
+      case 'billing':
+        return (
+          <BillingView
+            facturas={facturas}
+            clientes={clientes}
+            onAddFactura={agregarFactura}
+            onEditFactura={actualizarFactura}
+            onDeleteFactura={eliminarFactura}
+          />
+        );
+
+      case 'accounting':
+        return (
+          <AccountingView
+            clientes={clientes}
+            facturas={facturas}
+            proveedores={proveedores}
+            facturasProveedores={facturasProveedores}
+            onAddCliente={agregarCliente}
+            onEditCliente={actualizarCliente}
+            onDeleteCliente={eliminarCliente}
+            onAddFactura={agregarFactura}
+            onEditFactura={actualizarFactura}
+            onDeleteFactura={eliminarFactura}
+            onAddProveedor={agregarProveedor}
+            onEditProveedor={actualizarProveedor}
+            onDeleteProveedor={eliminarProveedor}
+            onAddFacturaProveedor={agregarFacturaProveedor}
+            onEditFacturaProveedor={actualizarFacturaProveedor}
+            onDeleteFacturaProveedor={eliminarFacturaProveedor}
+          />
+        );
+
+      case 'templates':
+        return (
+          <TemplatesView
+            onCreateFromTemplate={crearProcesoDesdeTemplate}
+          />
+        );
+
+      case 'logistics':
+        return (
+          <EntitiesView
+            organismos={organismos}
+            proveedores={proveedores}
+            facturasProveedores={facturasProveedores}
+            onAddOrganismo={agregarOrganismo}
+            onEditOrganismo={actualizarOrganismo}
+            onDeleteOrganismo={eliminarOrganismo}
+            onAddProveedor={agregarProveedor}
+            onEditProveedor={actualizarProveedor}
+            onDeleteProveedor={eliminarProveedor}
+            onAddFacturaProveedor={agregarFacturaProveedor}
+            onEditFacturaProveedor={actualizarFacturaProveedor}
+            onDeleteFacturaProveedor={eliminarFacturaProveedor}
+          />
+        );
+
+      case 'analytics':
+        return (
+          <ReportsView
+            procesos={procesos}
+            onProcessClick={handleProcessClick}
+          />
+        );
+
+      case 'notifications':
+        return (
+          <NotificationsView
+            notificaciones={[...notificacionesSistema, ...notificaciones]}
+            onMarcarLeida={(id) => {
+              setNotificacionesSistema(prev => 
+                prev.map(n => n.id === id ? { ...n, leida: true } : n)
+              );
+              marcarNotificacionLeida(id);
+            }}
+            onEliminarNotificacion={(id) => {
+              setNotificacionesSistema(prev => prev.filter(n => n.id !== id));
+            }}
+          />
+        );
+
+      case 'calendar':
+        return (
+          <CalendarView
+            procesos={procesosDisplay}
+            onProcessClick={handleProcessClick}
+          />
+        );
+
+      case 'documents':
+        return (
+          <DocumentsView
+            procesos={procesosDisplay}
+            onValidateDocument={validarDocumento}
+            onUploadDocument={handleUploadDocument}
+            onAddNotificacion={agregarNotificacion}
+          />
+        );
+
+      case 'document-management':
+        return (
+          <DocumentsTemplatesView
+            procesos={procesosDisplay}
+            validaciones={validaciones}
+            documentos={procesosDisplay.flatMap(p => p.documentos || [])}
+            onValidateDocument={validarDocumento}
+            onRetryValidation={reintentarValidacion}
+            onCreateFromTemplate={crearProcesoDesdeTemplate}
+          />
+        );
+
+      case 'ai-validation':
+        return (
+          <AIValidationView
+            validaciones={validaciones}
+            documentos={procesosDisplay.flatMap(p => p.documentos || [])}
+            onValidateDocument={validarDocumento}
+            onRetryValidation={reintentarValidacion}
+          />
+        );
+
+      case 'settings':
+        return <SettingsView />;
+
+      case 'help':
+        return <HelpView />;
+
+      case 'financial':
+        return (
+          <AccountingView
+            clientes={clientes}
+            facturas={facturas}
+            proveedores={proveedores}
+            facturasProveedores={facturasProveedores}
+            onAddCliente={agregarCliente}
+            onEditCliente={actualizarCliente}
+            onDeleteCliente={eliminarCliente}
+            onAddFactura={agregarFactura}
+            onEditFactura={actualizarFactura}
+            onDeleteFactura={eliminarFactura}
+            onAddProveedor={agregarProveedor}
+            onEditProveedor={actualizarProveedor}
+            onDeleteProveedor={eliminarProveedor}
+            onAddFacturaProveedor={agregarFacturaProveedor}
+            onEditFacturaProveedor={actualizarFacturaProveedor}
+            onDeleteFacturaProveedor={eliminarFacturaProveedor}
+          />
+        );
+
+      case 'pricing':
+        return (
+          <PricingView
+            servicios={servicios}
+            notificaciones={notificaciones}
+            onAddServicio={agregarServicio}
+            onEditServicio={actualizarServicio}
+            onDeleteServicio={eliminarServicio}
+            onAplicarAumento={aplicarAumento}
+            onMarcarNotificacionLeida={marcarNotificacionLeida}
+          />
+        );
+
+      case 'entities':
+        return (
+          <EntitiesView
+            organismos={organismos}
+            proveedores={proveedores}
+            facturasProveedores={facturasProveedores}
+            onAddOrganismo={agregarOrganismo}
+            onEditOrganismo={actualizarOrganismo}
+            onDeleteOrganismo={eliminarOrganismo}
+            onAddProveedor={agregarProveedor}
+            onEditProveedor={actualizarProveedor}
+            onDeleteProveedor={eliminarProveedor}
+            onAddFacturaProveedor={agregarFacturaProveedor}
+            onEditFacturaProveedor={actualizarFacturaProveedor}
+            onDeleteFacturaProveedor={eliminarFacturaProveedor}
+          />
+        );
+
+      default:
+        // Dashboard principal con todas las estadísticas
+        return (
+          <div className="space-y-6">
+            {/* KPIs Financieros */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="card-modern p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Receipt className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-emerald-600 mb-1">
+                  ${presupuestos.reduce((sum, p) => sum + (p.total || 0), 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Total Presupuestado</div>
+              </div>
+              
+              <div className="card-modern p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <FileText className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-blue-600 mb-1">
+                  ${facturas.reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Total Facturado</div>
+              </div>
+              
+              <div className="card-modern p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-green-600 mb-1">
+                  ${facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Total Cobrado</div>
+              </div>
+              
+              <div className="card-modern p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <AlertTriangle className="text-white" size={24} />
+                </div>
+                <div className="text-2xl font-bold text-orange-600 mb-1">
+                  ${facturas.filter(f => f.estado === 'enviada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                </div>
+                <div className="text-sm text-slate-600">Pendiente de Cobro</div>
+              </div>
+            </div>
+
+            {/* Layout responsivo con estadísticas en lateral superior */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Contenido principal */}
+              <div className="lg:col-span-3">
+                {/* Estados de procesos - Lista con banderitas */}
+                <div className="card-modern p-4">
+                  <h3 className="text-lg font-semibold mb-3 text-slate-800">Estado de Procesos</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { estado: 'pendiente', label: 'Pendiente', flag: '🔴' },
+                      { estado: 'recopilacion-docs', label: 'Recopilación', flag: '🟠' },
+                      { estado: 'enviado', label: 'Enviado', flag: '🔵' },
+                      { estado: 'revision', label: 'Revisión', flag: '🟣' },
+                      { estado: 'aprobado', label: 'Aprobado', flag: '🟢' },
+                      { estado: 'rechazado', label: 'Rechazado', flag: '🔴' },
+                      { estado: 'archivado', label: 'Archivado', flag: '⚫' }
+                    ].map(({ estado, label, flag }) => {
+                      const count = procesos.filter(p => p.estado === estado).length;
+                      return (
+                        <div key={estado} className="flex items-center space-x-2 bg-white/70 rounded-lg px-3 py-2 border">
+                          <span className="text-lg">{flag}</span>
+                          <span className="text-sm font-medium text-slate-700">{label}</span>
+                          <span className="bg-slate-100 text-slate-800 px-2 py-1 rounded-full text-xs font-bold">{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Panel lateral con estadísticas */}
+              <div className="lg:col-span-1 space-y-4">
+                {/* Estadísticas generales */}
+                <div className="card-modern p-4">
+                  <h3 className="font-semibold text-slate-800 mb-3 text-center">Estadísticas</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Clientes:</span>
+                      <span className="font-bold text-blue-600">{clientes.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Presupuestos:</span>
+                      <span className="font-bold text-emerald-600">{presupuestos.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Procesos:</span>
+                      <span className="font-bold text-purple-600">{procesos.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Facturas:</span>
+                      <span className="font-bold text-indigo-600">{facturas.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Organismos:</span>
+                      <span className="font-bold text-orange-600">{organismos.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Proveedores:</span>
+                      <span className="font-bold text-pink-600">{proveedores.length}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+    }
   };
 
-  // Función para manejar clic en proceso (ver detalles)
-  const handleProcessClick = (proceso: ProcesoDisplay) => {
-    setSelectedProcess(proceso);
-  };
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      {/* Header */}
+      <header className="bg-white/95 backdrop-blur-xl border-b border-white/20 shadow-lg sticky top-0 z-40">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 hover:bg-blue-100 rounded-xl transition-all duration-200"
+            >
+              <Menu size={24} />
+            </button>
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <FileText className="text-white" size={16} />
+              </div>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                Sistema de Gestión - Importación/Exportación
+              </h1>
+            </div>
+          </div>
+          
+          {/* Menú de navegación central */}
+          <div className="hidden lg:flex items-center space-x-1 bg-white/50 rounded-xl p-1">
+            <button
+              onClick={() => setCurrentView('processes')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                currentView === 'processes' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-600 hover:bg-white/70'
+              }`}
+            >
+              Procesos
+            </button>
+            <button
+              onClick={() => setCurrentView('clients')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                currentView === 'clients' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-600 hover:bg-white/70'
+              }`}
+            >
+              Clientes
+            </button>
+            <button
+              onClick={() => setCurrentView('budgets')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                currentView === 'budgets' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-600 hover:bg-white/70'
+              }`}
+            >
+              Presupuestos
+            </button>
+            <button
+              onClick={() => setCurrentView('billing')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                currentView === 'billing' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-600 hover:bg-white/70'
+              }`}
+            >
+              Facturación
+            </button>
+            <button
+              onClick={() => setCurrentView('templates')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                currentView === 'templates' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-600 hover:bg-white/70'
+              }`}
+            >
+              Plantillas
+            </button>
+            <button
+              onClick={() => setCurrentView('logistics')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                currentView === 'logistics' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-600 hover:bg-white/70'
+              }`}
+            >
+              Logística
+            </button>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            {/* Indicador de carga pequeño */}
+            {isLoading && (
+              <div className="flex items-center space-x-2 glass text-blue-800 px-3 py-1 rounded-full text-sm shadow-lg">
+                <Database className="animate-spin" size={14} />
+                <span>Conectando BD...</span>
+              </div>
+            )}
+            
+            <button
+              onClick={handleNotificationsClick}
+              className="relative p-2 hover:bg-white/20 rounded-xl transition-all duration-200 hover:scale-105"
+              title="Notificaciones"
+            >
+              <Bell size={20} />
+              {notificacionesNoLeidas > 0 && (
+                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
+                  {notificacionesNoLeidas > 9 ? '9+' : notificacionesNoLeidas}
+                </span>
+              )}
+            </button>
+            
+            {currentView !== 'dashboard' && (
+              <button
+                onClick={handleHomeClick}
+                className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 hover:scale-105"
+                title="Volver a Pantalla Principal"
+              >
+                <Home size={20} />
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
 
+      {/* Sidebar */}
+      <Sidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onMenuSelect={handleMenuSelect}
+        isFixed={sidebarFixed}
+        onToggleFixed={() => setSidebarFixed(!sidebarFixed)}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+
+      {/* Main Content */}
+      <main className={`transition-all duration-300 ${
+        sidebarFixed ? (sidebarCollapsed ? 'ml-16' : 'ml-64') : 'ml-0'
+      }`}>
+        <div className="p-6">
+          {/* Alerta de error de conexión */}
+          {showConnectionError && (
+            <div className="card-modern bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 p-4 mb-6">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="text-red-600" size={20} />
+                <div>
+                  <h4 className="font-semibold text-red-800">Error de conexión</h4>
+                  <p className="text-sm text-red-700">No se pudo conectar con la base de datos. Trabajando en modo local.</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {renderCurrentView()}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default App;
   // Función para editar proceso
   const handleEditProcess = (proceso: ProcesoDisplay) => {
     setEditingProcess(proceso);
