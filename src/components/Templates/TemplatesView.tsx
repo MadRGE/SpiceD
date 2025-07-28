@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, FileText, Clock, Building, Plus, Eye } from 'lucide-react';
+import { Search, FileText, Clock, Building, Plus, Eye, Edit } from 'lucide-react';
 import { plantillasProcedimientos, organismos } from '../../data/plantillas';
 
 interface TemplatesViewProps {
@@ -240,6 +240,12 @@ const TemplatesView: React.FC<TemplatesViewProps> = ({ onCreateFromTemplate }) =
               <div className="p-6 text-center text-gray-500">
                 <FileText size={48} className="mx-auto mb-4 text-gray-300" />
                 <p>Selecciona una plantilla para ver sus detalles</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Modal de creación/edición de plantilla */}
       {showCreateForm && (
         <>
@@ -284,7 +290,7 @@ const TemplatesView: React.FC<TemplatesViewProps> = ({ onCreateFromTemplate }) =
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
-              </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Organismo *
@@ -300,7 +306,7 @@ const TemplatesView: React.FC<TemplatesViewProps> = ({ onCreateFromTemplate }) =
                       ))}
                     </select>
                   </div>
-            )}
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Tiempo Estimado (días) *
@@ -313,7 +319,7 @@ const TemplatesView: React.FC<TemplatesViewProps> = ({ onCreateFromTemplate }) =
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
-          </div>
+                  
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Costo Estimado
@@ -325,7 +331,7 @@ const TemplatesView: React.FC<TemplatesViewProps> = ({ onCreateFromTemplate }) =
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
-        </div>
+                  
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Documentos Requeridos (uno por línea) *
@@ -340,7 +346,7 @@ const TemplatesView: React.FC<TemplatesViewProps> = ({ onCreateFromTemplate }) =
                     />
                   </div>
                 </div>
-      </div>
+                
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
