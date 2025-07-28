@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Bell, Home, AlertTriangle, CheckCircle, User, FileText, Receipt, Search, Filter, Database } from 'lucide-react';
 
-// Importar hooks locales
+// Importar hooks locales (dejamos Supabase en stand-by como solicitaste)
 import { useClientes } from './hooks/useClientes';
 import { useBudgets } from './hooks/useBudgets';
 import { useProcesos } from './hooks/useProcesos';
@@ -11,9 +11,10 @@ import { useProveedores } from './hooks/useProveedores';
 import { useServicios } from './hooks/useServicios';
 import { useValidacionIA } from './hooks/useValidacionIA';
 
-// Importar componentes de vistas
+// Importar TODOS los componentes de vistas que habíamos creado
 import ClientsView from './components/Clients/ClientsView';
 import BudgetsView from './components/Budgets/BudgetsView';
+import ProcessesView from './components/Processes/ProcessesView';
 import BillingView from './components/Billing/BillingView';
 import ReportsView from './components/Reports/ReportsView';
 import TemplatesView from './components/Templates/TemplatesView';
@@ -28,9 +29,11 @@ import AccountingView from './components/Accounting/AccountingView';
 import EntitiesView from './components/Entities/EntitiesView';
 import PricingView from './components/Pricing/PricingView';
 import DocumentsTemplatesView from './components/DocumentsTemplates/DocumentsTemplatesView';
+import ProcessCard from './components/Kanban/ProcessCard';
 import KanbanBoard from './components/Kanban/KanbanBoard';
 import ProcessForm from './components/Forms/ProcessForm';
 import ProcessDetails from './components/Processes/ProcessDetails';
+import DocumentManager from './components/Documents/DocumentManager';
 import SearchFilters from './components/Search/SearchFilters';
 
 // Tipos
@@ -63,7 +66,7 @@ const App: React.FC = () => {
     etiquetas: []
   });
 
-  // Hooks para todas las funcionalidades
+  // Hooks para TODAS las funcionalidades
   const { clientes, agregarCliente, actualizarCliente, eliminarCliente } = useClientes();
   const { presupuestos, agregarPresupuesto, actualizarPresupuesto, eliminarPresupuesto, buscarPresupuesto } = useBudgets();
   const { 
@@ -102,26 +105,23 @@ const App: React.FC = () => {
   } = useProveedores();
   const { 
     servicios, 
-    notificaciones, 
     agregarServicio, 
     actualizarServicio, 
     eliminarServicio, 
     aplicarAumento, 
-    marcarNotificacionLeida,
-    agregarNotificacion: agregarNotificacionServicio
+    notificaciones, 
+    agregarNotificacion, 
+    marcarNotificacionLeida 
   } = useServicios();
   const { 
     validaciones, 
-    loading: validacionLoading,
     validarDocumento, 
-    reintentarValidacion,
-    obtenerValidacionPorDocumento
+    reintentarValidacion, 
+    notificacionesSistema, 
+    setNotificacionesSistema 
   } = useValidacionIA();
 
-  // Estados para notificaciones del sistema
-  const [notificacionesSistema, setNotificacionesSistema] = useState<NotificacionPrecio[]>([]);
-
-  // Convertir procesos a ProcesoDisplay con toda la información
+  // Procesos con información completa para mostrar
   const procesosDisplay: ProcesoDisplay[] = procesos.map(proceso => {
     const cliente = clientes.find(c => c.id === proceso.clienteId);
     const organismo = organismos.find(o => o.id === proceso.organismoId);
@@ -129,96 +129,51 @@ const App: React.FC = () => {
     return {
       ...proceso,
       cliente: cliente?.nombre || 'Cliente no encontrado',
-      organismo: organismo?.nombre || 'Organismo no encontrado',
-      fechaInicio: proceso.fechaCreacion
+      organismo: organismo?.nombre || 'Organismo no encontrado'
     };
   });
 
-  // Función para agregar notificaciones del sistema
-  const agregarNotificacion = (notificacion: NotificacionPrecio) => {
-    setNotificacionesSistema(prev => [...prev, notificacion]);
-  };
+  // Función para crear proceso desde presupuesto
+  const crearProcesoDesdePresupuesto = (presupuestoId: string) => {
+    const presupuesto = presupuestos.find(p => p.id === presupuestoId);
+    if (!presupuesto) return;
 
-  // Función ÚNICA para crear proceso desde presupuesto
-  const crearProcesoDesdePresupuesto = (presupuesto: any) => {
-    const plantillasSeleccionadas = plantillasProcedimientos.filter(p => 
-      presupuesto.plantillasIds?.includes(p.id)
-    );
-
-    if (plantillasSeleccionadas.length === 0) {
-      alert('No se encontraron plantillas asociadas al presupuesto');
-      return;
-    }
-
-    // Crear un proceso por cada plantilla seleccionada
-    plantillasSeleccionadas.forEach((plantilla, index) => {
-      const nuevoProceso = {
-        titulo: `${plantilla.nombre} - ${presupuesto.cliente.nombre}`,
-        descripcion: `Proceso creado desde presupuesto ${presupuesto.numero}`,
-        estado: 'pendiente' as EstadoProceso,
-        fechaCreacion: new Date().toISOString(),
-        fechaInicio: new Date().toISOString(),
-        fechaVencimiento: new Date(Date.now() + (plantilla.tiempoEstimado * 24 * 60 * 60 * 1000)).toISOString(),
-        clienteId: presupuesto.clienteId,
-        organismoId: '1', // TODO: Mapear organismo correctamente
-        documentos: plantilla.documentosRequeridos.map((doc, docIndex) => ({
-          id: `${Date.now()}-${index}-${docIndex}`,
-          nombre: doc,
-          tipo: 'requerido' as const,
-          estado: 'pendiente' as const,
-          fechaCarga: new Date().toISOString(),
-          validado: false,
-          tipoDocumento: 'Documento requerido'
-        })),
-        progreso: 0,
-        prioridad: 'media' as any,
-        etiquetas: [presupuesto.tipoOperacion.toLowerCase()],
-        responsable: 'Usuario Actual',
-        comentarios: [],
-        costos: presupuesto.total,
-        plantillaId: plantilla.id,
-        facturado: false,
-        presupuestoId: presupuesto.id
-      };
-
-      agregarProceso(nuevoProceso);
-    });
-
-    // Crear factura automáticamente
-    const nuevaFactura = {
-      numero: generarNumeroFactura(),
+    const nuevoProceso = {
+      titulo: `Proceso para ${presupuesto.cliente}`,
+      descripcion: `Proceso creado desde presupuesto: ${presupuesto.descripcion}`,
+      estado: 'pendiente' as EstadoProceso,
+      fechaCreacion: new Date().toISOString(),
+      fechaInicio: new Date().toISOString(),
+      fechaVencimiento: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString(),
       clienteId: presupuesto.clienteId,
-      cliente: presupuesto.cliente,
-      fecha: new Date(),
-      fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
-      items: presupuesto.items,
-      subtotal: presupuesto.subtotal,
-      iva: presupuesto.iva,
-      total: presupuesto.total,
-      estado: 'enviada' as const,
-      notas: `Factura generada desde presupuesto ${presupuesto.numero}`,
-      fechaCreacion: new Date(),
-      fechaActualizacion: new Date(),
+      organismoId: '1', // TODO: Mapear organismo correctamente
+      documentos: [],
+      progreso: 0,
+      prioridad: 'media' as any,
+      etiquetas: ['presupuesto'],
+      responsable: 'Usuario Actual',
+      comentarios: [],
+      costos: presupuesto.total,
       presupuestoId: presupuesto.id,
-      tipo: 'cliente' as const
+      facturado: false
     };
 
-    agregarFactura(nuevaFactura);
-
-    // Notificar creación de procesos y factura
+    agregarProceso(nuevoProceso);
+    setCurrentView('processes');
+    
+    // Notificar creación de proceso
     agregarNotificacion({
       id: Date.now().toString(),
       tipo: 'nuevo_proceso',
       modulo: 'procesos',
-      titulo: 'Procesos y factura creados',
-      mensaje: `Se crearon ${plantillasSeleccionadas.length} proceso(s) y 1 factura desde el presupuesto ${presupuesto.numero}`,
+      titulo: 'Proceso creado desde presupuesto',
+      mensaje: `Se creó un proceso desde el presupuesto de ${presupuesto.cliente}`,
       fecha: new Date(),
       leida: false,
-      prioridad: 'media',
-      presupuestoId: presupuesto.id
+      prioridad: 'media'
     });
 
-    alert(`✅ Se crearon ${plantillasSeleccionadas.length} proceso(s) y 1 factura desde el presupuesto`);
+    alert(`Proceso creado desde presupuesto para ${presupuesto.cliente}`);
   };
 
   // Función para crear proceso desde plantilla
@@ -272,31 +227,35 @@ const App: React.FC = () => {
     alert(`Proceso "${plantilla.nombre}" creado desde plantilla`);
   };
 
-  // Funciones de manejo de procesos
+  // Función para manejar clic en proceso (ver detalles)
   const handleProcessClick = (proceso: ProcesoDisplay) => {
     setSelectedProcess(proceso);
   };
 
+  // Función para editar proceso
   const handleEditProcess = (proceso: ProcesoDisplay) => {
     setEditingProcess(proceso);
     setShowProcessForm(true);
   };
 
+  // Función para ver proceso (alias de handleProcessClick)
   const handleViewProcess = (proceso: ProcesoDisplay) => {
     setSelectedProcess(proceso);
   };
 
-  // Funciones de navegación
+  // Función para manejar navegación del sidebar
   const handleMenuSelect = (menu: string) => {
     setCurrentView(menu);
     setSelectedProcess(null);
-    setSidebarOpen(false);
+    setSidebarOpen(false); // Cerrar sidebar en móvil
   };
 
+  // Función para manejar notificaciones
   const handleNotificationsClick = () => {
     setCurrentView('notifications');
   };
 
+  // Función para volver al dashboard
   const handleHomeClick = () => {
     setCurrentView('dashboard');
     setSelectedProcess(null);
@@ -596,7 +555,6 @@ const App: React.FC = () => {
             </div>
           </div>
         );
-
       case 'analytics':
         return (
           <ReportsView
@@ -668,38 +626,32 @@ const App: React.FC = () => {
         return <HelpView />;
 
       default:
-        // Dashboard principal
+        // Dashboard principal con todas las estadísticas
         return (
           <div className="space-y-6">
-            {/* Título principal */}
-            <div className="text-center">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2">
-                🚀 Sistema de Gestión de Importación/Exportación
-              </h1>
-              <p className="text-slate-600 text-lg">
-                Sistema completo para gestión de procesos aduaneros
-              </p>
-            </div>
-
-            {/* Estados de procesos - Lista con banderitas */}
-            <div className="card-modern p-4">
-              <h3 className="text-lg font-semibold mb-3 text-slate-800">Estado de Procesos</h3>
-              <div className="flex flex-wrap gap-2">
+            {/* Estado de Procesos con Banderitas - ARRIBA DE TODO */}
+            <div className="card-modern p-6">
+              <h3 className="text-lg font-semibold mb-4 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                Estado de Procesos
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                 {[
-                  { estado: 'pendiente', label: 'Pendiente', flag: '🔴' },
-                  { estado: 'recopilacion-docs', label: 'Recopilación', flag: '🟠' },
-                  { estado: 'enviado', label: 'Enviado', flag: '🔵' },
-                  { estado: 'revision', label: 'Revisión', flag: '🟣' },
-                  { estado: 'aprobado', label: 'Aprobado', flag: '🟢' },
-                  { estado: 'rechazado', label: 'Rechazado', flag: '🔴' },
-                  { estado: 'archivado', label: 'Archivado', flag: '⚫' }
-                ].map(({ estado, label, flag }) => {
+                  { estado: 'pendiente', label: 'Pendiente', flag: '🔴', color: 'text-red-600' },
+                  { estado: 'recopilacion-docs', label: 'Recopilación', flag: '🟠', color: 'text-orange-600' },
+                  { estado: 'enviado', label: 'Enviado', flag: '🔵', color: 'text-blue-600' },
+                  { estado: 'revision', label: 'Revisión', flag: '🟣', color: 'text-purple-600' },
+                  { estado: 'aprobado', label: 'Aprobado', flag: '🟢', color: 'text-emerald-600' },
+                  { estado: 'rechazado', label: 'Rechazado', flag: '🔴', color: 'text-red-700' },
+                  { estado: 'archivado', label: 'Archivado', flag: '⚫', color: 'text-slate-600' }
+                ].map(({ estado, label, flag, color }) => {
                   const count = procesos.filter(p => p.estado === estado).length;
                   return (
-                    <div key={estado} className="flex items-center space-x-2 bg-white/70 rounded-lg px-3 py-2 border">
+                    <div key={estado} className="flex items-center space-x-2 bg-white/50 rounded-lg p-2 hover:bg-white/70 transition-all">
                       <span className="text-lg">{flag}</span>
-                      <span className="text-sm font-medium text-slate-700">{label}</span>
-                      <span className="bg-slate-100 text-slate-800 px-2 py-1 rounded-full text-xs font-bold">{count}</span>
+                      <div className="flex-1">
+                        <div className="text-xs text-slate-600">{label}</div>
+                        <div className={`font-bold ${color}`}>{count}</div>
+                      </div>
                     </div>
                   );
                 })}
@@ -710,126 +662,70 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="card-modern p-6 text-center">
                 <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <Receipt className="text-white" size={24} />
-                </div>
-                <div className="text-2xl font-bold text-emerald-600">
-                  ${presupuestos.reduce((sum, p) => sum + (p.total || 0), 0).toLocaleString()}
-                </div>
-                <div className="text-sm text-slate-600">Total Presupuestado</div>
-              </div>
-              
-              <div className="card-modern p-6 text-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <FileText className="text-white" size={24} />
-                </div>
-                <div className="text-2xl font-bold text-blue-600">
-                  ${facturas.reduce((sum, f) => sum + f.total, 0).toLocaleString()}
-                </div>
-                <div className="text-sm text-slate-600">Total Facturado</div>
-              </div>
-              
-              <div className="card-modern p-6 text-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle className="text-white" size={24} />
-                </div>
-                <div className="text-2xl font-bold text-green-600">
-                  ${facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
-                </div>
-                <div className="text-sm text-slate-600">Total Cobrado</div>
-              </div>
-              
-              <div className="card-modern p-6 text-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <AlertTriangle className="text-white" size={24} />
-                </div>
-                <div className="text-2xl font-bold text-orange-600">
-                  ${facturas.filter(f => f.estado === 'enviada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
-                </div>
-                <div className="text-sm text-slate-600">Pendiente de Cobro</div>
-              </div>
-            </div>
-
-            {/* Menú de Acciones Principales */}
-            <div className="card-modern p-6">
-              <h3 className="text-xl font-semibold text-center mb-6 text-slate-800">
-                Acciones Principales
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <button
-                  onClick={() => setCurrentView('budgets')}
-                  className="card-gradient p-6 hover-lift group text-center"
-                  title="Crear y gestionar presupuestos para clientes"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
-                    <Receipt className="text-white" size={24} />
-                  </div>
-                  <span className="block font-semibold text-slate-700">Crear Presupuesto</span>
-                </button>
-                
-                <button
-                  onClick={() => setCurrentView('clients')}
-                  className="card-gradient p-6 hover-lift group text-center"
-                  title="Administrar información de clientes y documentos"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
-                    <User className="text-white" size={24} />
-                  </div>
-                  <span className="block font-semibold text-slate-700">Gestionar Clientes</span>
-                </button>
-                
-                <button
-                  onClick={() => setCurrentView('processes')}
-                  className="card-gradient p-6 hover-lift group text-center"
-                  title="Ver y gestionar todos los procesos en tablero Kanban"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
-                    <FileText className="text-white" size={24} />
-                  </div>
-                  <span className="block font-semibold text-slate-700">Ver Procesos</span>
-                </button>
-                
-                <button
-                  onClick={() => setCurrentView('templates')}
-                  className="card-gradient p-6 hover-lift group text-center"
-                  title="Usar plantillas predefinidas para crear procesos"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
-                    <FileText className="text-white" size={24} />
-                  </div>
-                  <span className="block font-semibold text-slate-700">Usar Plantillas</span>
-                </button>
-                
-                <button
-                  onClick={() => setCurrentView('logistics')}
-                  className="card-gradient p-6 hover-lift group text-center"
-                  title="Gestión logística y seguimiento de envíos"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
-                    <FileText className="text-white" size={24} />
-                  </div>
-                  <span className="block font-semibold text-slate-700">Logística</span>
-                </button>
-                
-                <button
-                  onClick={() => setCurrentView('accounting')}
-                  className="card-gradient p-6 hover-lift group text-center"
-                  title="Estado contable, facturación y finanzas"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
-                    <Receipt className="text-white" size={24} />
-                  </div>
-                  <span className="block font-semibold text-slate-700">Estado Contable</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Panel lateral con estadísticas */}
+            {/* Layout responsivo con estadísticas en lateral superior */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Contenido principal */}
               <div className="lg:col-span-3">
-                {/* Espacio para contenido adicional si es necesario */}
+                {/* Estados de procesos - Lista con banderitas */}
+                <div className="card-modern p-4">
+                  <h3 className="text-lg font-semibold mb-3 text-slate-800">Estado de Procesos</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { estado: 'pendiente', label: 'Pendiente', flag: '🔴' },
+                      { estado: 'recopilacion-docs', label: 'Recopilación', flag: '🟠' },
+                      { estado: 'enviado', label: 'Enviado', flag: '🔵' },
+                      { estado: 'revision', label: 'Revisión', flag: '🟣' },
+                      { estado: 'aprobado', label: 'Aprobado', flag: '🟢' },
+                      { estado: 'rechazado', label: 'Rechazado', flag: '🔴' },
+                      { estado: 'archivado', label: 'Archivado', flag: '⚫' }
+                    ].map(({ estado, label, flag }) => {
+                      const count = procesos.filter(p => p.estado === estado).length;
+                      return (
+                        <div key={estado} className="flex items-center space-x-2 bg-white/70 rounded-lg px-3 py-2 border">
+                          <span className="text-lg">{flag}</span>
+                          <span className="text-sm font-medium text-slate-700">{label}</span>
+                          <span className="bg-slate-100 text-slate-800 px-2 py-1 rounded-full text-xs font-bold">{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
+              {/* Panel lateral con estadísticas y notificaciones */}
               <div className="lg:col-span-1 space-y-4">
+                {/* KPIs Financieros compactos */}
+                <div className="card-modern p-4">
+                  <h3 className="font-semibold text-slate-800 mb-3 text-center">KPIs Financieros</h3>
+                  <div className="space-y-3">
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-emerald-600">
+                        ${presupuestos.reduce((sum, p) => sum + (p.total || 0), 0).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-slate-600">Total Presupuestado</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-blue-600">
+                        ${facturas.reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-slate-600">Total Facturado</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-green-600">
+                        ${facturas.filter(f => f.estado === 'pagada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-slate-600">Total Cobrado</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-orange-600">
+                        ${facturas.filter(f => f.estado === 'enviada').reduce((sum, f) => sum + f.total, 0).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-slate-600">Pendiente de Cobro</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Estadísticas generales */}
                 <div className="card-modern p-4">
                   <h3 className="font-semibold text-slate-800 mb-3 text-center">Estadísticas</h3>
                   <div className="space-y-2">
@@ -852,6 +748,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Notificaciones */}
                 <div className="card-modern p-4">
                   <h3 className="font-semibold text-slate-800 mb-3 text-center">Notificaciones</h3>
                   <div className="space-y-2">
@@ -903,6 +800,7 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* Indicador de carga pequeño */}
             {isLoading && (
               <div className="flex items-center space-x-2 glass text-blue-800 px-3 py-1 rounded-full text-sm shadow-lg">
                 <Database className="animate-spin" size={14} />
@@ -952,6 +850,7 @@ const App: React.FC = () => {
         sidebarFixed ? (sidebarCollapsed ? 'ml-16' : 'ml-64') : 'ml-0'
       }`}>
         <div className="p-6">
+          {/* Alerta de error de conexión */}
           {showConnectionError && (
             <div className="card-modern bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 p-4 mb-6">
               <div className="flex items-center space-x-2">
