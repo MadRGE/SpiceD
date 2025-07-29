@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Bell, Home, AlertTriangle, CheckCircle, User, FileText, Receipt, Search, Filter, Database } from 'lucide-react';
 
-// Importar hooks locales (dejamos Supabase en stand-by como solicitaste)
-import { useClientes } from './hooks/useClientes';
-import { useBudgets } from './hooks/useBudgets';
-import { useProcesos } from './hooks/useProcesos';
-import { useFacturas } from './hooks/useFacturas';
-import { useOrganismos } from './hooks/useOrganismos';
-import { useProveedores } from './hooks/useProveedores';
-import { useServicios } from './hooks/useServicios';
+// Importar módulos
+import { 
+  useClientes, 
+  useProcesos, 
+  useFacturas, 
+  useBudgets,
+  useOrganismos, 
+  useProveedores, 
+  useServicios,
+  useNotifications,
+  plantillasProcedimientos
+} from './modules';
+
+// Importar hooks adicionales
 import { useValidacionIA } from './hooks/useValidacionIA';
 
 // Importar TODOS los componentes de vistas que habíamos creado
@@ -36,9 +42,9 @@ import ProcessDetails from './components/Processes/ProcessDetails';
 import DocumentManager from './components/Documents/DocumentManager';
 import SearchFilters from './components/Search/SearchFilters';
 
-// Tipos
-import { ProcesoDisplay, EstadoProceso, NotificacionPrecio, FiltrosProcesos } from './types';
-import { plantillasProcedimientos } from './data/plantillas';
+// Tipos desde módulos
+import { ProcesoDisplay, EstadoProceso, FiltrosProcesos } from './modules/processes/types';
+import { NotificacionPrecio } from './modules/pricing/types';
 
 const App: React.FC = () => {
   // Estados de navegación y UI
