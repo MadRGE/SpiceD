@@ -134,13 +134,7 @@ const App: React.FC = () => {
     
     return {
       ...proceso,
-      cliente: cliente?.nombre || 'Cliente no encontrado',
-      organismo: organismo?.nombre || 'Organismo no encontrado'
-    };
-  });
-
-  // Función para crear proceso desde presupuesto
-              }`}
+              className={`px-4 py-2 rounded-lg transition-colors ${currentView === 'clients' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
             >
               Clientes
             </button>
