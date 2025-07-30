@@ -13,7 +13,6 @@ interface ClientsViewProps {
   onDeleteCliente: (clienteId: string) => void;
   onProcessClick?: (proceso: ProcesoDisplay) => void;
   setCurrentView: (view: string) => void;
-  onAddNotificacion: (notificacion: any) => void;
 }
 
 const ClientsView: React.FC<ClientsViewProps> = ({
@@ -24,8 +23,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
   onEditCliente,
   onDeleteCliente,
   onProcessClick,
-  setCurrentView,
-  onAddNotificacion
+  setCurrentView
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);

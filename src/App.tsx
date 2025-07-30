@@ -288,7 +288,6 @@ const App: React.FC = () => {
             onDeleteCliente={eliminarCliente}
             onProcessClick={handleProcessClick}
             setCurrentView={setCurrentView}
-            onAddNotificacion={agregarNotificacion}
           />
         );
 
