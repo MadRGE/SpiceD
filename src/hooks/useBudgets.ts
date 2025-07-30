@@ -39,7 +39,8 @@ export const useBudgets = () => {
         estado: 'enviado',
         fechaCreacion: new Date('2024-01-10'),
         fechaVencimiento: new Date('2024-02-10'),
-        notas: 'Incluye asesoría completa y gestión de documentos'
+       notas: 'Incluye asesoría completa y gestión de documentos',
+       procesoIds: []
       }
     ];
     

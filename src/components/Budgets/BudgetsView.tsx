@@ -681,7 +681,39 @@ const BudgetsView: React.FC<BudgetsViewProps> = ({
                   Cerrar
                 </button>
                 
+               {presupuesto.estado === 'borrador' && (
+                 <button
+                   onClick={() => {
+                     const presupuestoEnviado = {
+                       ...presupuesto,
+                       estado: 'enviado' as const
+                     };
+                     onEditPresupuesto(presupuestoEnviado);
+                   }}
+                   className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                   title="Enviar presupuesto"
+                 >
+                   <CheckCircle size={16} />
+                 </button>
+               )}
+               
                 <div className="flex space-x-3">
+                 {selectedPresupuesto.estado === 'borrador' && (
+                   <button
+                     onClick={() => {
+                       const presupuestoEnviado = {
+                         ...selectedPresupuesto,
+                         estado: 'enviado' as const
+                       };
+                       onEditPresupuesto(presupuestoEnviado);
+                       setShowDetails(false);
+                     }}
+                     className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
+                   >
+                     Enviar Presupuesto
+                   </button>
+                 )}
+                 
                   {selectedPresupuesto.estado === 'enviado' && (
                     <button
                       onClick={() => {
