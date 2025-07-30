@@ -681,11 +681,11 @@ const BudgetsView: React.FC<BudgetsViewProps> = ({
                   Cerrar
                 </button>
                 
-               {presupuesto.estado === 'borrador' && (
+               {selectedPresupuesto.estado === 'borrador' && (
                  <button
                    onClick={() => {
                      const presupuestoEnviado = {
-                       ...presupuesto,
+                       ...selectedPresupuesto,
                        estado: 'enviado' as const
                      };
                      onEditPresupuesto(presupuestoEnviado);
