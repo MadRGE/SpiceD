@@ -53,7 +53,10 @@ export const useBudgets = () => {
 
   const actualizarPresupuesto = (presupuesto: Presupuesto) => {
     setPresupuestos(prev => 
-      prev.map(p => p.id === presupuesto.id ? presupuesto : p)
+      prev.map(p => p.id === presupuesto.id ? {
+        ...presupuesto,
+        fechaActualizacion: new Date()
+      } : p)
     );
   };
 

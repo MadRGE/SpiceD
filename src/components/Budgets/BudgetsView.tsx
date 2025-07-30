@@ -703,7 +703,8 @@ const BudgetsView: React.FC<BudgetsViewProps> = ({
                      onClick={() => {
                        const presupuestoEnviado = {
                          ...selectedPresupuesto,
-                         estado: 'enviado' as const
+                         estado: 'enviado' as const,
+                         fechaEnvio: new Date()
                        };
                        onEditPresupuesto(presupuestoEnviado);
                        setShowDetails(false);
@@ -717,8 +718,18 @@ const BudgetsView: React.FC<BudgetsViewProps> = ({
                   {selectedPresupuesto.estado === 'enviado' && (
                     <button
                       onClick={() => {
-                        handleAprobarPresupuesto(selectedPresupuesto);
+                        const presupuestoAprobado = {
+                          ...selectedPresupuesto,
+                          estado: 'aprobado' as const,
+                          fechaAprobacion: new Date()
+                        };
+                        onEditPresupuesto(presupuestoAprobado);
                         setShowDetails(false);
+                        
+                        // Preguntar si crear proceso
+                        if (window.confirm('Presupuesto aprobado. ¿Desea crear el proceso automáticamente?')) {
+                          onCreateProcess(presupuestoAprobado);
+                        }
                       }}
                       className="px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors"
                     >
